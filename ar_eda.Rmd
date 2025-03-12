@@ -1,0 +1,56 @@
+---
+title: "metalworkingsolutions-pandas"
+output: html_notebook
+---
+
+Import libraries
+```{r}
+library(DBI) #not postgres specific
+library(RPostgres) #gives us the postgres driver 
+library(tidyverse) 
+```
+
+Create connection
+```{r}
+con <- dbConnect(Postgres(),                 # Use the postgres driver
+                 dbname = 'metalworkingsolutions',     # Name of the database we want to connect to
+                 host = 'localhost',         # 'localhost' or eg. 'ec2-54-83-201-96.compute-1.amazonaws.com'
+                 port = 5432, 
+                 user = 'postgres',
+                 password = rstudioapi::askForPassword("Database password"))
+```
+
+list tables in database
+```{r}
+dbListTables(con)
+```
+
+```{r}
+dbListFields(con, 'jobs')
+```
+
+```{r}
+query = "SELECT * FROM jobs LIMIT 100;"
+
+res <- dbSendQuery(con, query)
+```
+
+
+```{r}
+jobs <- dbFetch(res)
+dbClearResult(res)
+```
+
+
+
+```{r}
+jobs
+```
+
+
+
+
+
+
+
+

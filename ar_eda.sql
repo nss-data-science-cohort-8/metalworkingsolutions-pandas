@@ -115,3 +115,37 @@ WHERE omj_job_id IS NULL;
 
 
 
+
+-- b. How has the volume of work changed for each customer over time? Are there any seasonal patterns? How have the number of estimated hours per customer changed over time? Estimated hours are in the jmo_estimated_production_hours columns of the job_operations_2023/job_operations_2024 tables. actual hours are in the jmo_actual_production_hours columns of the job_operations_2023/job_operations_2024 tables. 
+-- what about jmp_completed_production_hours? 
+
+SELECT *
+FROM job_operations_2023
+LIMIT 5;
+
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'job_operations_2023'
+    AND column_name LIKE '%hours';
+
+SELECT
+    jmo_job_id,
+    jmo_created_date,
+    SUM(jmo_setup_hours),
+    SUM(jmo_actual_setup_hours),
+    SUM(jmo_actual_production_hours),
+    SUM(jmo_estimated_production_hours),
+    SUM(jmo_completed_setup_hours),
+    SUM(jmo_completed_production_hours)
+FROM job_operations_2023
+GROUP BY jmo_job_id, jmo_created_date;
+
+
+
+SELECT
+    jmo_job_id,
+    jmo_created_date,
+    SUM(jmo_estimated_production_hours) AS jmo_estimated_production_hours
+ FROM job_operations_2023
+GROUP BY jmo_job_id, jmo_created_date
+ORDER BY jmo_estimated_production_hours DESC;
