@@ -1,0 +1,123 @@
+---
+title: "R Pandas EDA"
+output: html_notebook
+---
+
+### 
+
+
+
+
+### 
+Packages
+```{r}
+
+library(DBI)
+#install.packages("RPostgres")
+library(RPostgres)
+library(tidyverse)
+library(dplyr)
+library(dbplyr)
+```
+
+Connect to Database
+```{r}
+con <- dbConnect(Postgres(),                
+                 dbname = 'metalworking',
+                 host = 'localhost',    
+                 port = 5432, 
+                 user = 'postgres',
+                 password = rstudioapi::askForPassword("Database password"))
+```
+
+List Tables in Database
+```{r}
+dbListTables(con)
+```
+
+
+Jobs Tibble
+```{r}
+jobs_tbl <- tbl(con, "jobs")
+jobs_tibble <- jobs_tbl |> collect()
+jobs_tibble
+```
+
+
+
+
+Sales Order Tibble
+```{r}
+so_tbl <- tbl(con, "sales_orders")
+so_tibble <- so_tbl |> collect()
+so_tibble
+```
+
+Job Operations 2024
+```{r}
+jo_2024_tbl <- tbl(con, "job_operations_2024")
+jo_2024_tibble <- jo_2024_tbl |> collect()
+jo_2024_tibble
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+
+```
+
+```{r}
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+```
+
+8. 
+```{r}
+
+
+```
+
+9. 
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+10. 
+
+
+```{r}
+
+```
