@@ -32,7 +32,7 @@ con <- dbConnect(Postgres(),
 
 List Tables in Database
 ```{r}
-dbListTables(con)
+dbListTables(con)1
 ```
 
 
@@ -60,58 +60,170 @@ jo_2024_tibble <- jo_2024_tbl |> collect()
 jo_2024_tibble
 ```
 
-
+Testing Query in R
 ```{r}
+query_1a <- "
+SELECT 
+    omp_customer_organization_id AS customer_id,
+    COUNT(omp_sales_order_id) AS order_count,
+    ROUND(SUM(omp_full_order_subtotal_base)::numeric, 2) AS subtotal
+FROM sales_orders
+GROUP BY omp_customer_organization_id
+ORDER BY subtotal DESC;
+"
 
+# Run the query and store the result in a data frame
+query_result_1a <- dbGetQuery(con, query_1a)
+query_result_1a
+
+```
+
+Testing 1b
+```{r}
+query_1b <- "
+SELECT 
+    omp_customer_organization_id AS customer_id,
+    COUNT(omp_sales_order_id) AS order_count,
+    ROUND(SUM(omp_full_order_subtotal_base)::numeric, 2) AS subtotal
+FROM sales_orders
+GROUP BY omp_customer_organization_id
+ORDER BY subtotal DESC;
+"
+
+# Run the query and store the result in a data frame
+query_result_1b <- dbGetQuery(con, query_1b)
+query_result_1b
+```
+
+sales_order table query
+```{r}
+so_query <-"
+SELECT 
+	omp_sales_order_id AS sales_order_number,
+	omp_customer_organization_id AS customer_id,
+	omp_order_date order_date,
+	omp_shipping_method_id AS shipping_method,
+	omp_payment_term_id AS terms,
+	omp_created_from_web AS web_order,
+	omp_full_order_subtotal_base AS subtotal,
+	omp_order_total_base AS total,
+	omp_total_order_weight AS order_weight
+FROM sales_orders;
+"
+so_query_result <- dbGetQuery(con, so_query)
+so_query_result
 
 ```
 
 
 ```{r}
+#write_csv(so_query_result, "sales_orders.csv")
 
 ```
 
 
+sales_order_line table query
 ```{r}
+sol_query <-"
+SELECT 
+	oml_sales_order_id AS sales_order_number,
+	oml_unit_of_measure AS uom,
+	oml_part_group_id AS part_group,
+	oml_part_short_description AS short_description,
+	oml_part_long_description_text AS long_description,
+	oml_order_quantity AS order_quantity,
+	oml_quantity_shipped AS quantity_shipped,
+	oml_full_unit_price_base AS base_price,
+	oml_full_extended_price_base AS extended_price
+FROM sales_order_lines;
+"
 
+sol_query_result <- dbGetQuery(con, sol_query)
+sol_query_result
 ```
 
 
 ```{r}
-
-
+write_csv(sol_query_result, "sales_order_lines.csv")
 ```
 
+jobs table query
 ```{r}
+jobs_query <-"
+SELECT 
+	jmp_job_id AS job_id,
+	jmp_production_due_date AS due_date,
+	jmp_job_date AS job_date,
+	jmp_customer_organization_id AS customer_id,
+	jmp_part_id AS part_id,
+	jmp_part_ware_house_location_id AS warehouse_location,
+	jmp_unit_of_measure AS uom,
+	jmp_part_short_description AS short_description,
+	jmp_part_long_description_text AS long_description,
+	jmp_order_quantity AS order_quantity,
+	jmp_production_quantity AS production_quantity,
+	jmp_quantity_shipped AS quantity_shipped,
+	jmp_job_priority_id AS priority,
+	jmp_source_method_id AS source_method,
+	jmp_ship_organization_id AS customer_id
+FROM jobs
+"
 
-```
-
-
-```{r}
-
-
-```
-
-
-```{r}
+jobs_query_result <- dbGetQuery(con, jobs_query)
+jobs_query_result
 
 ```
 
 8. 
 ```{r}
-
+write_csv(jobs_query_result, "jobs.csv")
 
 ```
 
 9. 
 ```{r}
-
-
+job_ops_24_query <-"
+SELECT 
+	jmo_job_id AS job_id,
+	jmo_plant_id AS plant_id,
+	jmo_work_center_id AS work_center,
+	jmo_process_id AS process,
+	jmo_process_short_description as short_description,
+	jmo_queue_time AS queue_time,
+	jmo_setup_hours AS setup_hours,
+	jmo_production_standard AS production_standard,
+	jmo_quantity_complete AS quantity_complete,
+	jmo_actual_setup_hours AS setup_hours,
+	jmo_actual_production_hours AS actual_production_hours,
+	jmo_estimated_production_hours AS estimated_production_hours,
+	jmo_completed_production_hours AS completed_production_hours
+FROM job_operations_2024;
+"
+job_ops_24_query_result <- dbGetQuery(con, job_ops_24_query)
+job_ops_24_query_result
 ```
 
 
 ```{r}
-
+job_ops_23_query <-"
+SELECT 
+	jmo_job_id AS job_id,
+	jmo_plant_id AS plant_id,
+	jmo_work_center_id AS work_center,
+	jmo_process_id AS process,
+	jmo_process_short_description as short_description,
+	jmo_queue_time AS queue_time,
+	jmo_setup_hours AS setup_hours,
+	jmo_production_standard AS production_standard,
+	jmo_quantity_complete AS quantity_complete,
+	jmo_actual_setup_hours AS setup_hours,
+	jmo_actual_production_hours AS actual_production_hours,
+	jmo_estimated_production_hours AS estimated_production_hours,
+	jmo_completed_production_hours AS completed_production_hours
+FROM job_operations_2023;
+"
+job_ops_23_query_result <- dbGetQuery(con, job_ops_23_query)
+job_ops_23_query_result
 
 ```
 
@@ -119,5 +231,6 @@ jo_2024_tibble
 
 
 ```{r}
-
+write_csv(job_ops_23_query_result, "jobs_23.csv")
+write_csv(job_ops_24_query_result, "jobs_24.csv")
 ```
