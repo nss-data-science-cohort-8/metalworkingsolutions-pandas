@@ -19,6 +19,7 @@ library(tidyverse)
 library(lubridate)
 library(dplyr)
 library(dbplyr)
+library(ggplot2)
 ```
 
 Connect to Database
@@ -33,7 +34,7 @@ con <- dbConnect(Postgres(),
 
 List Tables in Database
 ```{r}
-dbListTables(con)1
+dbListTables(con)
 ```
 
 
@@ -294,7 +295,102 @@ revenue_by_customer
 
 
 
-how has the volume of work changed 
+customer changes
+```{r}
+customers_month <- so_query_result |> 
+  mutate(order_month = floor_date(order_date, "month"))
+customers_month
+```
+
+
+```{r}
+customer_activity <- customers_month |> 
+  group_by(order_month) |> 
+  summarise(new_customers = n_distinct(customer_id))
+
+
+
+ggplot(customer_activity, aes(x = order_month, y = new_customers)) +
+  geom_line() +
+  labs(title = "new customer by month", x = "Month", y = "New Customers")
+
+```
+
+
+```{r}
+customer_cohort_df <- customers_month |> 
+  group_by(customer_id) |> 
+  mutate(first_purchase = min(order_date)) |> 
+  ungroup()  
+
+# first purchase month
+customer_cohort_df <- customer_cohort_df |> 
+  mutate(first_purchase_month = floor_date(first_purchase, "month"))
+
+# first p month group by
+cohort_groupby <- customer_cohort_df |> 
+  group_by(first_purchase_month) |> 
+  summarise(customers_in_cohort = n_distinct(customer_id)) |> 
+  arrange(first_purchase_month)
+
+cohort_groupby
+
+```
+
+
+
+
+```{r}
+
+customer_order_summary <- customer_cohort_df |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    days_between = as.numeric(difftime(max(order_date), min(order_date), units = "days"))
+  ) %>%
+  ungroup()  
+
+
+avg_days_all_customers <- mean(customer_order_summary$days_between, na.rm = TRUE)
+
+
+customer_order_summary <- customer_order_summary |> 
+  mutate(avg_days_diff = avg_days_all_customers)
+
+
+customer_order_summary
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
 ```{r}
 
 ```
