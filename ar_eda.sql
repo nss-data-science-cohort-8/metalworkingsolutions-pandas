@@ -10,7 +10,7 @@ A few tips for navigating the database: Each job can have multiple job operation
 For your project, your group will be responsible for one of the following sets of questions. Construct an R Shiny app to show your findings.
 
 **1. Do an analysis of customers. The customer can be identified using the jmp_customer_organization_id from the jobs table or the omp_customer_organization_id from the sales_orders table. Here are some example questions to get started:  
-    a. Which customers have the highest volume of jobs? Which generate the most revenue (as indicated by the omp_order_subtotal_base in the sales_order table)?  
+    a. Which customers have the highest volume of jobs? Which generate the most revenue (as indicated by the omp_order_subtotal_base (Ian recommended we use the total in the shipments table for revenue calculations) in the sales_order table)?  
     b. How has the volume of work changed for each customer over time? Are there any seasonal patterns? How have the number of estimated hours per customer changed over time? Estimated hours are in the jmo_estimated_production_hours columns of the job_operations_2023/job_operations_2024 tables.  
     c. How has the customer base changed over time? What percentage of jobs are for new customers compared to repeat customers?  
     d. Perform a breakdown of customers by operation (as indicated by the jmo_process short_description in the job_operations_2023 or job_operations_2024 table).** */
@@ -157,7 +157,7 @@ SELECT
 FROM revenue;
 
 
--- this is closer
+-- this is closer : not divided by year
 WITH revenue AS (
     SELECT 
         DISTINCT omp_sales_order_id,
