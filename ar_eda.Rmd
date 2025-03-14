@@ -102,8 +102,31 @@ jobs_volume_hours |>
   theme_minimal()
 ```
 
+```{r}
 
+query <- "SELECT
+    EXTRACT(MONTH FROM jmo_created_date) AS month,
+    SUM(jmo_estimated_production_hours) AS jmo_estimated_production_hours
+    FROM job_operations_2023
+    GROUP BY jmo_created_date, date_trunc('month', jmo_created_date)
+    ORDER BY month;"
+result_set <- dbSendQuery(connection, query)
+```
 
+```{r}
+jobs_volume_hours_month <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+```{r}
+jobs_volume_hours_month |>
+  ggplot(aes(x = month, y = jmo_estimated_production_hours)) +
+  geom_col(fill = "#ff8200") +
+  labs(title = "Total production hours / month",
+       x = "Month",
+       y = "Estimated production hours") +
+  theme_minimal()
+```
 
 
 
