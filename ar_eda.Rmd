@@ -18,12 +18,13 @@ library(tidyverse)
 Create connection
 ```{r}
 connection <- dbConnect(
-  Postgres(), # Use the postgres driver
+  Postgres(), # Use the postgres driver # nolint
   dbname = "metalworkingsolutions", # Name of the database we want to connect to
   host = "localhost",
   port = 5432,
   user = "postgres",
-  password = rstudioapi::askForPassword("Database password"))
+  password = rstudioapi::askForPassword("Database password")
+  )
 ```
 
 list tables in database
@@ -35,7 +36,7 @@ List all fields in a table
 **b. How has the volume of work changed for each customer over time? Are there any seasonal patterns? How have the number of estimated hours per customer changed over time? Estimated hours are in the jmo_estimated_production_hours columns of the job_operations_2023/job_operations_2024 tables.**
 
 ```{r}
-query <- "SELECT * FROM job_operations_2023" 
+query <- "SELECT * FROM job_operations_2023"
 result_set <- dbSendQuery(connection, query)
 ```
 
@@ -57,15 +58,6 @@ result_set <- dbSendQuery(connection, query)
 job_ops_23_slimmed <- dbFetch(result_set)
 dbClearResult(result_set)
 job_ops_23_slimmed
-```
-
-
-```{r}
-
-job_ops_23_slimmed |> 
-  ggplot(aes(x = week, y = total_estimated_hours, color = jmo_job_id)) +
-  geom_point() +
-  theme_minimal()
 ```
 
 
