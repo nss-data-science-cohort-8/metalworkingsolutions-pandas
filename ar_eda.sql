@@ -18,8 +18,7 @@ For your project, your group will be responsible for one of the following sets o
 
 -- 1.a 
 --------------------------------------------------------------------------------
--- Revenue and job counts generated per customer 
--- 
+-- REVENUE --
 -- 2023
 -- 	2023	M030-MORGO	$7,720,776.64
 SELECT EXTRACT(YEAR FROM smp_ship_date) AS year, smp_customer_organization_id, SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
@@ -36,6 +35,42 @@ GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
 HAVING EXTRACT(YEAR FROM smp_ship_date) = 2024
 ORDER BY total_revenue DESC;
 
+-- TOTAL
+-- M030-MORGO	$8,844,478.79
+SELECT smp_customer_organization_id, SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
+FROM shipments 
+GROUP BY smp_customer_organization_id
+ORDER BY total_revenue DESC;
+
+-- TOTAL COMPANY REVENUE 2023 --
+-- $23,092,060.67
+WITH revenue_2023 AS (
+    SELECT 
+        EXTRACT(YEAR FROM smp_ship_date) AS year,
+        smp_customer_organization_id, 
+        SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
+    FROM shipments 
+    GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+    HAVING EXTRACT(YEAR FROM smp_ship_date) = 2023
+    ORDER BY total_revenue DESC
+)
+SELECT SUM(total_revenue) AS total_revenue
+FROM revenue_2023;
+
+-- TOTAL COMPANY REVENUE 2024 --
+-- $15,190,447.63
+WITH revenue_2024 AS (
+    SELECT 
+        EXTRACT(YEAR FROM smp_ship_date) AS year,
+        smp_customer_organization_id, 
+        SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
+    FROM shipments 
+    GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+    HAVING EXTRACT(YEAR FROM smp_ship_date) = 2024
+    ORDER BY total_revenue DESC
+)
+SELECT SUM(total_revenue) AS total_revenue
+FROM revenue_2024;
 
 -- 1.b 
 --------------------------------------------------------------------------------
