@@ -16,6 +16,7 @@ library(DBI)
 #install.packages("RPostgres")
 library(RPostgres)
 library(tidyverse)
+library(lubridate)
 library(dplyr)
 library(dbplyr)
 ```
@@ -164,9 +165,8 @@ SELECT
 	jmp_production_quantity AS production_quantity,
 	jmp_quantity_shipped AS quantity_shipped,
 	jmp_job_priority_id AS priority,
-	jmp_source_method_id AS source_method,
-	jmp_ship_organization_id AS customer_id
-FROM jobs
+	jmp_source_method_id AS source_method
+FROM jobs;
 "
 
 jobs_query_result <- dbGetQuery(con, jobs_query)
@@ -176,8 +176,17 @@ jobs_query_result
 
 8. 
 ```{r}
-write_csv(jobs_query_result, "jobs.csv")
-
+shipments_query <-"
+SELECT 	
+	smp_shipment_id AS shipment_id,
+	smp_ship_date AS shipment_date,
+	smp_customer_organization_id AS customer_id,
+	smp_shipment_subtotal AS subtotal,
+	smp_shipment_total AS total
+FROM shipments;
+"
+shipments_query_result <- dbGetQuery(con, shipments_query)
+shipments_query_result
 ```
 
 9. 
@@ -231,6 +240,61 @@ job_ops_23_query_result
 
 
 ```{r}
-write_csv(job_ops_23_query_result, "jobs_23.csv")
-write_csv(job_ops_24_query_result, "jobs_24.csv")
+so_jl_query <-"
+SELECT *
+FROM sales_order_job_links;
+"
+so_jl_query_result <- dbGetQuery(con, so_jl_query)
+so_jl_query_result
+```
+
+
+
+```{r}
+
+```
+
+
+
+Which customers have the highest volume of jobs ?
+```{r}
+jobs_by_customer <- jobs_query_result |> 
+  group_by(customer_id) |> 
+  summarize(
+    count_of_job_id = n(),  
+    sum_of_quantity_shipped = sum(quantity_shipped, na.rm = TRUE) 
+  ) |> 
+  arrange(desc(count_of_job_id)) |> 
+  mutate(
+    percent_of_total = (count_of_job_id / sum(count_of_job_id)) * 100 
+  )
+
+
+jobs_by_customer
+
+```
+
+
+
+which customers generate the most revenue?
+```{r}
+revenue_by_customer <- shipments_query_result |> 
+  group_by(customer_id) |> 
+  summarize(
+    sum_of_revenue = sum(total, na.rm = TRUE) 
+  ) |> 
+  arrange(desc(sum_of_revenue)) |> 
+  mutate(
+    percent_of_total = (sum_of_revenue / sum(sum_of_revenue)) * 100 
+  )
+
+
+revenue_by_customer
+```
+
+
+
+how has the volume of work changed 
+```{r}
+
 ```
