@@ -94,7 +94,9 @@ top20_customers_total <- customers |>
   head(20)
 ```
 
-look at order total by month for each of top20 customers in 2023. Using plotly for interactivity. 
+
+## monthly change by customer, 2023
+Using plotly for interactivity. 
 ```{r}
 p <- customers |> 
   select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |> 
@@ -147,10 +149,60 @@ customers |>
   ) 
 ```
 
+## monthly change by customer, 2024
+Using plotly for interactivity 
+```{r}
+p <- customers |> 
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |> 
+  mutate(month = month(omp_order_date), year = year(omp_order_date)) |> 
+  rename(customer_id = omp_customer_organization_id, generated_revenue = omp_order_total_base) |> 
+  filter(year == 2024, customer_id %in% top20_customers_2024$customer_id) |> 
+  group_by(customer_id, month) |> 
+  summarise(generated_revenue = sum(generated_revenue), .groups = 'drop') |> 
+  mutate(customer_id = factor(customer_id, levels = top20_customers_2024$customer_id)) |> 
+  ggplot(aes(x=month, y=generated_revenue, color=customer_id)) +
+  geom_line() +
+  scale_x_continuous(
+    breaks = seq_along(month.name),
+    labels = month.name 
+  ) +
+  labs(
+    title = "Change in Customer Generated Revenue 2024",
+    x = "Month",
+    y = "Revenue ($)"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  ) 
+ggplotly(p)
+```
 
+using ggplot for better inline visibility
+```{r, fig.width=10}
+customers |> 
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |> 
+  mutate(month = month(omp_order_date), year = year(omp_order_date)) |> 
+  rename(customer_id = omp_customer_organization_id, generated_revenue = omp_order_total_base) |> 
+  filter(year == 2024, customer_id %in% top20_customers_2024$customer_id) |> 
+  group_by(customer_id, month) |> 
+  summarise(generated_revenue = sum(generated_revenue), .groups = 'drop') |> 
+  mutate(customer_id = factor(customer_id, levels = top20_customers_2024$customer_id)) |> 
+  ggplot(aes(x=month, y=generated_revenue, color=customer_id)) +
+  geom_line() +
+  scale_x_continuous(
+    breaks = seq_along(month.name),
+    labels = month.name 
+  ) +
+  labs(
+    title = "Change in Customer Generated Revenue 2024",
+    x = "Month",
+    y = "Revenue ($)"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  ) 
 
-
-
+```
 
 
 
