@@ -35,7 +35,7 @@ GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
 HAVING EXTRACT(YEAR FROM smp_ship_date) = 2024
 ORDER BY total_revenue DESC;
 
--- TOTAL
+-- CUSTOMER BOTH YEARS -- 
 -- M030-MORGO	$8,844,478.79
 SELECT smp_customer_organization_id, SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
 FROM shipments 
@@ -71,6 +71,74 @@ WITH revenue_2024 AS (
 )
 SELECT SUM(total_revenue) AS total_revenue
 FROM revenue_2024;
+
+
+-- USING sales_orders TABLE --
+-- 2023 COMPANY REVENUE --
+-- $22,567,497.02
+WITH revenue AS (
+    SELECT 
+        DISTINCT omp_sales_order_id,
+        EXTRACT(YEAR FROM omp_order_date) AS year,
+        SUM(omp_order_total_base::NUMERIC::MONEY) AS total_order_value
+    FROM sales_orders
+    GROUP BY omp_sales_order_id, omp_order_date
+    HAVING EXTRACT(YEAR FROM omp_order_date) = 2023
+    ORDER BY total_order_value DESC
+)
+SELECT SUM(total_order_value) AS total_revenue
+FROM revenue; 
+
+-- 2024 COMPANY REVENUE --
+-- $16,225,617.39
+WITH revenue AS (
+    SELECT 
+        DISTINCT omp_sales_order_id,
+        EXTRACT(YEAR FROM omp_order_date) AS year,
+        SUM(omp_order_total_base::NUMERIC::MONEY) AS total_order_value
+    FROM sales_orders
+    GROUP BY omp_sales_order_id, omp_order_date
+    HAVING EXTRACT(YEAR FROM omp_order_date) = 2024
+    ORDER BY total_order_value DESC
+)
+SELECT SUM(total_order_value) AS total_revenue
+FROM revenue; 
+
+
+-- 2023 CUSTOMER REVENUE -- 
+-- M030-MORGO	$7,264,747.93
+SELECT 
+    EXTRACT(YEAR FROM omp_order_date) AS year, 
+    omp_customer_organization_id, 
+    SUM(omp_order_subtotal_base)::NUMERIC::MONEY AS total_revenue
+FROM sales_orders
+GROUP BY omp_customer_organization_id, EXTRACT(YEAR FROM omp_order_date)
+HAVING EXTRACT(YEAR FROM omp_order_date) = 2023
+ORDER BY total_revenue DESC;
+
+
+-- 2024 CUSTOMER REVENUE -- 
+-- Y002-YNGTC	$4,831,083.83
+SELECT 
+    EXTRACT(YEAR FROM omp_order_date) AS year, 
+    omp_customer_organization_id, 
+    SUM(omp_order_subtotal_base)::NUMERIC::MONEY AS total_revenue
+FROM sales_orders
+GROUP BY omp_customer_organization_id, EXTRACT(YEAR FROM omp_order_date)
+HAVING EXTRACT(YEAR FROM omp_order_date) = 2024
+ORDER BY total_revenue DESC;
+
+
+-- CUSTOMER BOTH YEARS -- 
+-- M030-MORGO	$8,458,041.04
+SELECT 
+    omp_customer_organization_id, 
+    SUM(omp_order_subtotal_base)::NUMERIC::MONEY AS total_revenue
+FROM sales_orders
+GROUP BY omp_customer_organization_id
+ORDER BY total_revenue DESC;
+
+
 
 -- 1.b 
 --------------------------------------------------------------------------------
@@ -156,14 +224,19 @@ SELECT
     SUM(total_revenue_per_customer) AS total_revenue
 FROM revenue;
 
+SELECT *
+FROM sales_orders
+LIMIT 5;
 
 -- this is closer : not divided by year
 WITH revenue AS (
     SELECT 
         DISTINCT omp_sales_order_id,
+        EXTRACT(YEAR FROM omp_order_date) AS year,
         SUM(omp_order_total_base::NUMERIC::MONEY) AS total_order_value
     FROM sales_orders
-    GROUP BY omp_sales_order_id
+    GROUP BY omp_sales_order_id, omp_order_date
+    HAVING EXTRACT(YEAR FROM omp_order_date) = 2023
     ORDER BY total_order_value DESC
 )
 SELECT SUM(total_order_value) AS total_revenue
@@ -307,13 +380,13 @@ FROM jobs
 SELECT
     COUNT(DISTINCT jmp_customer_organization_id) AS n_returning_customers
 FROM jobs
-HAVING COUNT(jmp_customer_organization_id) > 1;
--- WHERE jmp_customer_organization_id IN (
---     SELECT DISTINCT jmp_customer_organization_id
---     FROM jobs
---     GROUP BY jmp_customer_organization_id
---     HAVING COUNT(jmp_customer_organization_id) > 1
--- );
+-- HAVING COUNT(jmp_customer_organization_id) > 1;
+WHERE jmp_customer_organization_id IN (
+    SELECT DISTINCT jmp_customer_organization_id
+    FROM jobs
+    GROUP BY jmp_customer_organization_id
+    HAVING COUNT(jmp_customer_organization_id) > 1
+);
 
 
 
