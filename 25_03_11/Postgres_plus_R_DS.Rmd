@@ -1,0 +1,109 @@
+---
+title: "Using Postgre with R"
+output: html_notebook
+---
+
+First, we need to establish a connection with our database. For this, we will use the RPostgres and DBI libraries.
+
+If you are working with a large database, you might consider using the dbplyr library (https://dbplyr.tidyverse.org/articles/dbplyr.html), which allows you to use dplyr verbs to interact with tables in a database, but actually execute them in the database.
+
+```{r}
+library(DBI)
+library(RPostgres)
+library(tidyverse)
+```
+
+Now, we'll create our connection.
+```{r}
+con <- dbConnect(Postgres(),                 # Use the postgres driver
+                 dbname = 'metalworking solution',     # Name of the database we want to connect to
+                 host = 'localhost',         # 'localhost' or eg. 'ec2-54-83-201-96.compute-1.amazonaws.com'
+                 port = 5432, 
+                 user = 'postgres',
+                 password = 'Postgre')
+
+
+# SQL Query to Get New vs Existing Customers Per Month
+query <- "
+WITH first_transaction AS (
+    -- Determine the first transaction date for each customer
+    SELECT 
+        jmp_customer_organization_id,
+        MIN(jmp_production_due_date) AS first_purchase_date
+    FROM jobs
+    GROUP BY jmp_customer_organization_id
+)
+
+SELECT 
+    EXTRACT(YEAR FROM j.jmp_production_due_date) AS year,
+    EXTRACT(MONTH FROM j.jmp_production_due_date) AS month,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date = j.jmp_production_due_date THEN j.jmp_customer_organization_id
+    END) AS new_customers,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date < j.jmp_production_due_date THEN j.jmp_customer_organization_id
+    END) AS existing_customers
+FROM jobs j
+JOIN first_transaction f 
+    ON j.jmp_customer_organization_id = f.jmp_customer_organization_id
+GROUP BY year, month
+ORDER BY year, month;
+"
+
+customer_data <- dbGetQuery(con, query)
+
+dbDisconnect(con)
+
+customer_data <- customer_data %>%
+  mutate(date = as.Date(paste(year, month, "01", sep = "-")))
+
+
+customer_data_long <- customer_data %>%
+  select(date, new_customers, existing_customers) %>%
+  tidyr::pivot_longer(cols = c(new_customers, existing_customers), 
+                      names_to = "customer_type", 
+                      values_to = "count")
+
+
+ggplot(customer_data_long, aes(x = date, y = count, fill = customer_type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "New vs Existing Customers Per Month",
+       x = "Month",
+       y = "Number of Customers",
+       fill = "Customer Type") +
+  theme_minimal() +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+We can see the tables in the database.
+```{r}
+dbListTables(con)
+```
+
+We can even see the columns of a particular table.
+```{r}
+dbListFields(con, 'drug')
+```
+
+To execute a query, we can use the dbSendQuery function
+```{r}
+query = "SELECT * FROM prescriber LIMIT 100;"
+
+res <- dbSendQuery(con, query)
+```
+
+Then to retrieve the results, we can use dbFetch. Note that you can fetch only a portion of the results if needed, but we'll fetch everything.
+```{r}
+prescribers <- dbFetch(res)
+
+# It is good practice to clear the result after fetching what you need in order to free all resources associated with the result set. 
+dbClearResult(res)
+```
+
+The results that are returned come through as a dataframe, so we can manipulate it using tidyverse.
+```{r}
+prescribers %>% 
+  filter(nppes_provider_city == 'NASHVILLE')
+```
