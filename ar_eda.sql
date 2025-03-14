@@ -19,19 +19,22 @@ For your project, your group will be responsible for one of the following sets o
 -- 1.a 
 --------------------------------------------------------------------------------
 -- Revenue and job counts generated per customer 
--- Y002-YNGTC	888	$42,982,729.77  --- highest revenue
--- M030-MORGO	3633	$17,515,449.94 --- most jobs
-SELECT 
-    DISTINCT jmp_customer_organization_id AS customer_id,
-    COUNT(*) OVER(PARTITION BY jmp_customer_organization_id) AS n_jobs_per_customer,
-    SUM(omp_order_subtotal_base::NUMERIC::MONEY) OVER(PARTITION BY jmp_customer_organization_id) AS total_revenue_per_customer
-FROM jobs j
-    INNER JOIN sales_order_job_links s
-    ON j.jmp_job_id = s.omj_job_id
-    INNER JOIN sales_orders so
-    ON s.omj_sales_order_id = so.omp_sales_order_id
-WHERE jmp_customer_organization_id IS NOT NULL
-ORDER BY total_revenue_per_customer DESC;
+-- 
+-- 2023
+-- 	2023	M030-MORGO	$7,720,776.64
+SELECT EXTRACT(YEAR FROM smp_ship_date) AS year, smp_customer_organization_id, SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
+FROM shipments 
+GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+HAVING EXTRACT(YEAR FROM smp_ship_date) = 2023
+ORDER BY total_revenue DESC;
+
+-- 2024
+-- 2024	Y002-YNGTC	$4,390,725.46
+SELECT EXTRACT(YEAR FROM smp_ship_date) AS year, smp_customer_organization_id, SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
+FROM shipments 
+GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+HAVING EXTRACT(YEAR FROM smp_ship_date) = 2024
+ORDER BY total_revenue DESC;
 
 
 -- 1.b 
@@ -78,7 +81,77 @@ SELECT
     COUNT(jmp_customer_organization_id) AS n_total_customer_orders,
     COUNT(DISTINCT jmp_job_id) AS n_distinct_jobs
 FROM jobs;
- 
+
+
+-- as this is, it does not take into account repeats. They should be clearing somewhere around 20_25 mil in revenue
+WITH revenue AS (
+    SELECT 
+        DISTINCT jmp_customer_organization_id AS customer_id,
+        COUNT(*) OVER(PARTITION BY jmp_customer_organization_id) AS n_jobs_per_customer,
+        SUM(omp_order_subtotal_base::NUMERIC::MONEY) OVER(PARTITION BY jmp_customer_organization_id) AS total_revenue_per_customer
+    FROM jobs j
+        INNER JOIN sales_order_job_links s
+        ON j.jmp_job_id = s.omj_job_id
+        INNER JOIN sales_orders so
+        ON s.omj_sales_order_id = so.omp_sales_order_id
+    WHERE jmp_customer_organization_id IS NOT NULL
+    ORDER BY total_revenue_per_customer DESC
+)
+SELECT 
+    SUM(total_revenue_per_customer) AS total_revenue
+FROM revenue;
+
+
+
+
+WITH revenue AS (
+    SELECT 
+        DISTINCT jmp_customer_organization_id AS customer_id,
+        COUNT(*) OVER(PARTITION BY jmp_customer_organization_id) AS n_jobs_per_customer,
+        SUM(omp_order_subtotal_base::NUMERIC::MONEY) OVER(PARTITION BY jmp_customer_organization_id) AS total_revenue_per_customer
+    FROM jobs j
+        INNER JOIN sales_order_job_links s
+        ON j.jmp_job_id = s.omj_job_id
+        INNER JOIN sales_orders so
+        ON s.omj_sales_order_id = so.omp_sales_order_id
+    WHERE jmp_customer_organization_id IS NOT NULL
+    ORDER BY total_revenue_per_customer DESC
+)
+SELECT 
+    SUM(total_revenue_per_customer) AS total_revenue
+FROM revenue;
+
+
+-- this is closer
+WITH revenue AS (
+    SELECT 
+        DISTINCT omp_sales_order_id,
+        SUM(omp_order_total_base::NUMERIC::MONEY) AS total_order_value
+    FROM sales_orders
+    GROUP BY omp_sales_order_id
+    ORDER BY total_order_value DESC
+)
+SELECT SUM(total_order_value) AS total_revenue
+FROM revenue; 
+
+SELECT *
+FROM shipments;
+
+-- 2023
+-- 	2023	M030-MORGO	$7,720,776.64
+SELECT EXTRACT(YEAR FROM smp_ship_date) AS year, smp_customer_organization_id, SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
+FROM shipments 
+GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+HAVING EXTRACT(YEAR FROM smp_ship_date) = 2023
+ORDER BY total_revenue DESC;
+
+-- 2024
+-- 2024	Y002-YNGTC	$4,390,725.46
+SELECT EXTRACT(YEAR FROM smp_ship_date) AS year, smp_customer_organization_id, SUM(smp_shipment_total)::NUMERIC::MONEY AS total_revenue
+FROM shipments 
+GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+HAVING EXTRACT(YEAR FROM smp_ship_date) = 2024
+ORDER BY total_revenue DESC;
 
 -- there are 7 null customer ids in the jmp_customer_organization_id column
 SELECT 
@@ -141,11 +214,74 @@ FROM job_operations_2023
 GROUP BY jmo_job_id, jmo_created_date;
 
 
-
+-- jobs_volume_hours
 SELECT
-    jmo_job_id,
-    jmo_created_date,
+    date_trunc('week', jmo_created_date) AS week,
     SUM(jmo_estimated_production_hours) AS jmo_estimated_production_hours
  FROM job_operations_2023
-GROUP BY jmo_job_id, jmo_created_date
-ORDER BY jmo_estimated_production_hours DESC;
+GROUP BY date_trunc('week', jmo_created_date)
+ORDER BY week;
+
+
+
+-- job_ops_23_slimmed
+SELECT
+    jmo_job_id,
+    date_trunc('week', jmo_created_date) AS week,
+    SUM(jmo_estimated_production_hours) AS total_estimated_hours
+FROM job_operations_2023
+GROUP BY jmo_job_id, date_trunc('week', jmo_created_date)
+ORDER BY week;
+
+
+
+
+
+
+-- c. How has the customer base changed over time? What percentage of jobs are for new customers compared to repeat customers?  
+SELECT *
+FROM shipments
+LIMIT 20;
+
+SELECT * 
+FROM shipment_lines
+LIMIT 20;
+
+SELECT * 
+FROM sales_orders
+LIMIT 20;
+
+SELECT *
+FROM sales_order_job_links
+LIMIT 20;
+
+SELECT *
+FROM jobs
+LIMIT 20;
+
+
+-- new customers 
+SELECT 
+    COUNT(DISTINCT jmp_customer_organization_id) AS n_distinct_customers,
+    COUNT(DISTINCT jmp_customer_organization_id)::NUMERIC / COUNT( jmp_customer_organization_id)::NUMERIC AS pct_new,
+    COUNT(jmp_customer_organization_id) AS n_jobs
+FROM jobs 
+
+
+-- returning customers 
+SELECT
+    COUNT(DISTINCT jmp_customer_organization_id) AS n_returning_customers
+FROM jobs
+HAVING COUNT(jmp_customer_organization_id) > 1;
+-- WHERE jmp_customer_organization_id IN (
+--     SELECT DISTINCT jmp_customer_organization_id
+--     FROM jobs
+--     GROUP BY jmp_customer_organization_id
+--     HAVING COUNT(jmp_customer_organization_id) > 1
+-- );
+
+
+
+
+
+-- d. Perform a breakdown of customers by operation (as indicated by the jmo_process short_description in the job_operations_2023 or job_operations_2024 table).** */
