@@ -5,11 +5,12 @@ output: html_notebook
 
 install libraries
 ```{r}
-library(DBI)
-library(RPostgres)
-library(tidyverse)
-library(lubridate)
-library(plotly)
+shh <- suppressMessages
+shh(library(DBI))
+shh(library(RPostgres))
+shh(library(tidyverse))
+shh(library(lubridate))
+shh(library(plotly))
 ```
 
 set up connection to postgres
@@ -269,6 +270,7 @@ customers |>
 
 
 
+shipments missed / later than promise date seasonally 
 
 
 
