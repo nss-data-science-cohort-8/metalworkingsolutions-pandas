@@ -13,7 +13,7 @@ library(RPostgres)
 library(tidyverse)
 ```
 
-Now, we'll create our connection.
+
 ```{r}
 con <- dbConnect(Postgres(),                 # Use the postgres driver
                  dbname = 'metalworking solution',     # Name of the database we want to connect to
@@ -26,8 +26,7 @@ con <- dbConnect(Postgres(),                 # Use the postgres driver
 # SQL Query to Get New vs Existing Customers Per Month
 query <- "
 WITH first_transaction AS (
-    -- Determine the first transaction date for each customer
-    SELECT 
+       SELECT 
         jmp_customer_organization_id,
         MIN(jmp_production_due_date) AS first_purchase_date
     FROM jobs
@@ -43,8 +42,8 @@ SELECT
     COUNT(DISTINCT CASE 
         WHEN f.first_purchase_date < j.jmp_production_due_date THEN j.jmp_customer_organization_id
     END) AS existing_customers
-FROM jobs j
-JOIN first_transaction f 
+FROM jobs AS j
+JOIN first_transaction AS f 
     ON j.jmp_customer_organization_id = f.jmp_customer_organization_id
 GROUP BY year, month
 ORDER BY year, month;
@@ -76,34 +75,151 @@ ggplot(customer_data_long, aes(x = date, y = count, fill = customer_type)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
-
-We can see the tables in the database.
 ```{r}
-dbListTables(con)
+con <- dbConnect(Postgres(),                 
+                 dbname = 'metalworking solution',    
+                 host = 'localhost',         
+                 port = 5432, 
+                 user = 'postgres',
+                 password = 'Postgre')
+
+
+# SQL Query to Get New vs Existing Customers Per Month
+query <- "
+WITH first_transaction AS (
+    SELECT 
+        omp_customer_organization_id,
+        MIN(omp_order_date) AS first_purchase_date
+    FROM sales_orders
+    GROUP BY omp_customer_organization_id
+)
+
+SELECT 
+    EXTRACT(YEAR FROM o.omp_order_date) AS year,
+    EXTRACT(MONTH FROM o.omp_order_date) AS month,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date = o.omp_order_date THEN o.omp_customer_organization_id
+    END) AS new_customers,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date < o.omp_order_date THEN o.omp_customer_organization_id
+    END) AS existing_customers
+FROM sales_orders AS o
+JOIN first_transaction AS f 
+    ON o.omp_customer_organization_id = f.omp_customer_organization_id
+GROUP BY year, month
+ORDER BY year, month;
+"
+
+customer_data <- dbGetQuery(con, query)
+
+dbDisconnect(con)
+
+customer_data <- customer_data %>%
+  mutate(date = as.Date(paste(year, month, "01", sep = "-")))
+
+
+customer_data_long <- customer_data %>%
+  select(date, new_customers, existing_customers) %>%
+  tidyr::pivot_longer(cols = c(new_customers, existing_customers), 
+                      names_to = "customer_type", 
+                      values_to = "count")
+
+
+ggplot(customer_data_long, aes(x = date, y = count, fill = customer_type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "New vs Existing Customers Per Month",
+       x = "Month",
+       y = "Number of Customers",
+       fill = "Customer Type") +
+  theme_minimal() +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+# Load required libraries
+library(DBI)
+library(RPostgres)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(bit64)
+library(plotly)
+
+# Establish database connection
+con <- dbConnect(RPostgres::Postgres(),
+                 dbname = 'metalworking solution',
+                 host = 'localhost',
+                 port = 5432, 
+                 user = 'postgres',
+                 password = 'Postgre')
+
+# Execute SQL query to get data
+data <- dbGetQuery(con, "
+SELECT  
+    EXTRACT(YEAR FROM omp_order_date) AS year,
+    EXTRACT(MONTH FROM omp_order_date) AS month, 
+    omp_customer_organization_id, 
+    COUNT(omp_sales_order_id) AS NoOfOrder 
+FROM sales_orders
+GROUP BY year, month, omp_customer_organization_id
+ORDER BY year, month;
+")
+
+# Close the database connection
+dbDisconnect(con)
+
+# Explicitly convert integer64 to numeric
+data$NoOfOrder <- as.numeric(data$nooforder)
+
+# Add order date
+data <- data %>%
+  mutate(order_date = as.Date(paste(year, month, "01", sep="-")))
+
+# Determine the cohort (first purchase month) for each customer
+customer_cohort <- data %>%
+  group_by(omp_customer_organization_id) %>%
+  summarise(cohort_month = min(order_date))
+
+# Merge cohort info back with original data
+data <- data %>%
+  left_join(customer_cohort, by = "omp_customer_organization_id")
+
+# Calculate months since first purchase for each record
+data <- data %>%
+  mutate(months_since_first_order = interval(cohort_month, order_date) %/% months(1))
+customer_cohort_summary <- data %>%
+  group_by(omp_customer_organization_id, cohort_month, months_since_first_order) %>%
+  summarise(total_orders = sum(nooforder), .groups='drop')
+
+# Aggregate and arrange customers by the highest month since first order
+customer_cohort_summary <- data %>%
+  group_by(omp_customer_organization_id, cohort_month, months_since_first_order) %>%
+  summarise(total_orders = sum(NoOfOrder), .groups='drop') %>%
+  arrange(desc(months_since_first_order), omp_customer_organization_id) %>%
+  mutate(customer_index = as.numeric(factor(omp_customer_organization_id, levels = unique(omp_customer_organization_id))))
+
+# Plot interactive heatmap with numeric customer index and clear contrast colors
+p_customer <- ggplot(customer_cohort_summary, aes(
+          x = months_since_first_order, 
+          y = customer_index, 
+          fill = total_orders,
+          text = paste("Customer Org ID:", omp_customer_organization_id,
+                       "<br>Cohort Month:", cohort_month,
+                       "<br>Months Since First Order:", months_since_first_order,
+                       "<br>Total Orders:", total_orders))) +
+  geom_tile(color = "gray80") +
+  scale_fill_distiller(palette = "RdYlBu", direction = -1) +
+  labs(title = "Customer-Level Cohort Analysis",
+       x = "Months Since First Order",
+       y = "Customer Index",
+       fill = "Number of Orders") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size=7), 
+        axis.ticks.y = element_line(size=0.2),
+        panel.grid = element_blank())
+
+# Interactive plot with improved contrast and numeric axis labels
+ggplotly(p_customer, tooltip = "text")
 ```
 
-We can even see the columns of a particular table.
-```{r}
-dbListFields(con, 'drug')
-```
-
-To execute a query, we can use the dbSendQuery function
-```{r}
-query = "SELECT * FROM prescriber LIMIT 100;"
-
-res <- dbSendQuery(con, query)
-```
-
-Then to retrieve the results, we can use dbFetch. Note that you can fetch only a portion of the results if needed, but we'll fetch everything.
-```{r}
-prescribers <- dbFetch(res)
-
-# It is good practice to clear the result after fetching what you need in order to free all resources associated with the result set. 
-dbClearResult(res)
-```
-
-The results that are returned come through as a dataframe, so we can manipulate it using tidyverse.
-```{r}
-prescribers %>% 
-  filter(nppes_provider_city == 'NASHVILLE')
-```
