@@ -31,4 +31,4 @@ this should be a fairly good outline of branch management for working in groups 
 
 4. write a detailed description of your changes / work you have committed to the issue branch. 
 
-
+5. click 'Create pull request', allow to load, then click 'merge pull request'. This works fine when you're working on your own projects, but when working professionally you may not be the one merging the pull request, but a supervisor or the repository maintainer. 
