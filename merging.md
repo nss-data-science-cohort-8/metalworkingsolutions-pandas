@@ -25,7 +25,7 @@ this should be a fairly good outline of branch management for working in groups 
 
 1. commit all your changes and push them to your branch using `git push origin branch_name`.
 
-2. on GitHub navigate to your issue branch. you should see a button at the top that says 'Compare & pull request' in a highlighted bar that says something like '[code-branch-solid](assets/code-branch-solid.svg) 'branch_name' had recent pushes $25 seconds ago' 
+2. on GitHub navigate to your issue branch. you should see a button at the top that says 'Compare & pull request' in a highlighted bar that says something like '`branch_name` had recent pushes 25 seconds ago' 
 
 3. click on that button. double check at the top under 'Comparing changes' that your base repository is the correct repo and that the base branch is the branch you want to merge to, i.e. your source branch. 
 
