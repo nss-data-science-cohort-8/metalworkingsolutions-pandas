@@ -50,3 +50,6 @@ rsconnect/
 
 # connections in vscode
 .vscode/
+
+# quarto files
+ar_seasonal_trends_files
