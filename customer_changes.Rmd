@@ -1,0 +1,462 @@
+---
+title: "Customer Change Analysis"
+output: html_notebook
+---
+
+
+```{r}
+library(DBI)
+#install.packages("RPostgres")
+#install.packages("formattable")
+library(formattable)
+library(RPostgres)
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(dbplyr)
+library(ggplot2)
+library(zoo)
+```
+
+
+```{r}
+con <- dbConnect(Postgres(),                
+                 dbname = 'metalworking',
+                 host = 'localhost',    
+                 port = 5432, 
+                 user = 'postgres',
+                 password = rstudioapi::askForPassword("Database password"))
+```
+
+
+```{r}
+dbListTables(con)
+```
+
+
+```{r}
+so_query <-"
+SELECT 
+	omp_sales_order_id AS sales_order_number,
+	omp_customer_organization_id AS customer_id,
+	omp_order_date order_date,
+	omp_shipping_method_id AS shipping_method,
+	omp_payment_term_id AS terms,
+	omp_created_from_web AS web_order,
+	omp_full_order_subtotal_base AS subtotal,
+	omp_order_total_base AS total,
+	omp_total_order_weight AS order_weight
+FROM sales_orders;
+"
+so_query_result <- dbGetQuery(con, so_query)
+so_query_result
+```
+
+
+```{r}
+job_hours_query <-"
+WITH combined_jobs AS (
+    SELECT 
+        jmo_job_id,
+        CAST(jmo_completed_production_hours AS double precision) AS jmo_completed_production_hours,
+        CAST(jmo_estimated_production_hours AS double precision) AS jmo_estimated_production_hours
+    FROM job_operations_2023
+    UNION ALL
+    SELECT 
+        jmo_job_id,
+        CAST(jmo_completed_production_hours AS double precision) AS jmo_completed_production_hours,
+        CAST(jmo_estimated_production_hours AS double precision) AS jmo_estimated_production_hours
+    FROM job_operations_2024
+)
+SELECT 
+	   jobs.jmp_customer_organization_id AS customer_id,
+       SUM(jmo_completed_production_hours) AS completed_hours, 
+       SUM(jmo_estimated_production_hours) AS estimated_hours
+FROM combined_jobs
+LEFT JOIN jobs ON combined_jobs.jmo_job_id = jobs.jmp_job_id
+GROUP BY jobs.jmp_customer_organization_id
+"
+job_hours_result <- dbGetQuery(con, job_hours_query)
+job_hours_result
+```
+
+
+
+```{r}
+customers_month <- so_query_result |> 
+  mutate(order_month = floor_date(order_date, "month"))
+customers_month
+```
+
+
+```{r}
+new_customers_df <- customers_month |> 
+  group_by(customer_id) |> 
+  mutate(first_purchase = min(order_date)) |> 
+  ungroup()  
+
+# first p month
+new_customers_df <- new_customers_df |> 
+  mutate(first_purchase_month = format(first_purchase, "%Y-%m"))
+
+# first p month group by
+new_groupby <- new_customers_df |> 
+  group_by(first_purchase_month) |> 
+  summarise(customer_count = n_distinct(customer_id)) |> 
+  arrange(first_purchase_month)
+
+new_groupby_filtered <- new_groupby %>%
+  filter(first_purchase_month != "2023-01")
+
+# 6m rolling
+new_groupby_filtered <- new_groupby_filtered |> 
+  mutate(rolling_avg = rollapply(customer_count, width = 6, FUN = mean, align = "right", fill = NA))
+
+# simple avg
+new_groupby_filtered <- new_groupby_filtered |> 
+  mutate(simple_avg = mean(customer_count))
+
+new_groupby_filtered
+```
+
+
+```{r}
+
+ggplot(new_groupby_filtered, aes(x = as.Date(paste0(first_purchase_month, "-01")))) +
+  
+  geom_line(aes(y = customer_count), color = "blue", size = 1, na.rm = TRUE) +      
+  geom_point(aes(y = customer_count), color = "red", na.rm = TRUE) +                  
+  
+  # 6m rollin
+  geom_line(aes(y = rolling_avg), color = "green", size = 1.2, linetype = "dashed", na.rm = TRUE) +  
+  geom_point(aes(y = rolling_avg), color = "green", shape = 17, size = 3, na.rm = TRUE) +           
+  
+  # simple avg
+  geom_hline(aes(yintercept = simple_avg[1]), color = "orange", linetype = "dotted", size = 1) + 
+  
+  labs(
+    title = "New Customers by Month (avg 3.5 New Customers per Month)",
+    x = " ",
+    y = "Count",
+    caption = "Customer Base Analysis"
+  ) +
+  theme_minimal() +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  )
+```
+
+
+```{r}
+ 
+```
+
+
+```{r}
+so_query_result
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+Retention - Customer Count
+```{r}
+
+# Create the customer cohort table
+customer_cohort <- so_query_result |> 
+  group_by(customer_id) |> 
+  summarise(first_order_month = floor_date(min(order_date), "month")) |> 
+  ungroup()
+
+# Join the customer cohort with the sales orders
+# sales_orders <- so_query_result |> 
+#   left_join(customer_cohort, by = "customer_id") |> 
+#   mutate(
+#     months_since_first_order = as.numeric(difftime(order_date, first_order_month, units = "days")) %/% 30
+#   )
+
+
+sales_orders <- so_query_result |> 
+  left_join(customer_cohort, by = "customer_id") |> 
+  mutate(
+    months_since_first_order = floor(interval(first_order_month, order_date) / months(1))
+  )
+
+
+# Now you can create the cohort analysis table, spanning 24 months
+cohort_table <- sales_orders |> 
+  group_by(first_order_month, months_since_first_order) |> 
+  summarise(customers_in_cohort = n_distinct(customer_id)) |> 
+  spread(key = months_since_first_order, value = customers_in_cohort, fill = 0) |> 
+  arrange(first_order_month)
+
+# View the cohort table
+#sales_orders
+#sales_orders |> 
+  #filter(customer_id == 'V006-VONGA')
+
+cohort_table
+#write.csv(sales_orders, "sales_orders.csv", row.names = FALSE)
+
+```
+
+
+```{r}
+sales_orders
+```
+
+
+```{r}
+# Create the customer cohort table
+customer_cohort <- so_query_result |> 
+  group_by(customer_id) |> 
+  summarise(first_order_month = floor_date(min(order_date), "month")) |> 
+  ungroup()
+
+# Join the customer cohort with the sales orders
+sales_orders <- so_query_result |> 
+  left_join(customer_cohort, by = "customer_id") |> 
+  mutate(
+    months_since_first_order = as.numeric(difftime(order_date, first_order_month, units = "days")) %/% 30
+  )
+
+# Now you can create the cohort analysis table, summing up the 'total' instead of counting customers
+cohort_table_total <- sales_orders |> 
+  group_by(first_order_month, months_since_first_order) |> 
+  summarise(total_sales_in_cohort = sum(total, na.rm = TRUE)) |>  # Sum 'total' instead of counting customers
+  spread(key = months_since_first_order, value = total_sales_in_cohort, fill = 0) |> 
+  arrange(first_order_month)
+
+# View the cohort table
+cohort_table_total
+
+#write.csv(cohort_table, "cohort_table_total.csv", row.names = FALSE)
+
+```
+
+
+```{r}
+# Step 1: Create the initial customer order summary
+customer_order_summary <- so_query_result |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    days_between = as.numeric(difftime(max(order_date), min(order_date), units = "days"))
+  ) |> 
+  ungroup()
+
+# Step 2: Calculate the average days between first and last order for all customers
+avg_days_all_customers <- mean(customer_order_summary$days_between, na.rm = TRUE)
+
+# Step 3: Add the average days to the customer order summary
+customer_order_summary <- customer_order_summary |> 
+  mutate(avg_days_diff = avg_days_all_customers)
+
+# Step 4: Set the cutoff date for churn (e.g., 60 days ago)
+cutoff_date <- Sys.Date() - 60
+
+# Step 5: Calculate retention period and add 'OrderedWithin60' column
+customer_order_summary <- so_query_result |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    retention_period = as.numeric(difftime(max(order_date), min(order_date), units = "days"))  # Retention period (days between first and last order)
+  ) |> 
+  ungroup() |> 
+  mutate(
+    OrderedWithin60 = last_order_date >= (Sys.Date() - 60)  # Check if last order date is within the last 60 days
+  )
+
+# Step 6: Add distinct order count as a new column
+customer_order_summary <- so_query_result |> 
+  group_by(customer_id) |> 
+  summarise(
+    order_count = n_distinct(sales_order_number)  # Count distinct order numbers per customer
+  ) |> 
+  right_join(customer_order_summary, by = "customer_id")  # Join the distinct order count back to the customer order summary
+
+# Step 7: Add a new column for retention period in months
+customer_order_summary <- customer_order_summary |> 
+  mutate(
+    retention_period_months = retention_period / 30  # Dividing by 30 to approximate months
+  )
+
+# View the final customer order summary
+customer_order_summary
+
+
+
+
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+library(tibble)
+library(formattable)
+
+# Create sample tibble with students and their test scores
+student_scores <- tibble(
+  name = c("Alice", "Bob", "Charlie"),
+  score1 = c(50, 90, 75),
+  score2 = c(78, 92, 88),
+  score3 = c(95, 80, 82)
+)
+
+# Apply formatting with color scale for the scores
+formattable(student_scores, 
+            list(
+              score1 = color_tile("red", "green"),
+              score2 = color_tile("red", "green"),
+              score3 = color_tile("red", "green")
+            ))
+
+```
+
+
+
+```{r}
+
+cohort_count <- read_excel("../metalworkingsolutions-pandas/read_cohort_count.xlsx")
+cohort_count
+
+# Create a reactable table with conditional formatting for each row starting from column '1'
+reactable(cohort_count, 
+          columns = setNames(
+            lapply(4:ncol(cohort_count), function(i) {  # Start from column '1', so we skip '0' column
+              colDef(
+                style = function(value, index) {
+                  
+                  row <- cohort_count[index, ]
+                  
+                  # Find the min and max for the month values (columns 4 to the end)
+                  min_val <- min(row[4:ncol(cohort_count)], na.rm = TRUE)
+                  max_val <- max(row[4:ncol(cohort_count)], na.rm = TRUE)
+                  
+                 
+                  color_scale <- rescale(value, to = c(0, 1), from = c(min_val, max_val))
+                  
+                  # Define the color scale: red for low, green for high
+                  color <- col_numeric(
+                    palette = c("red", "green"), 
+                    domain = c(0, 1)
+                  )(color_scale)
+                  
+                  # Return the background color
+                  list(background = color)
+                }
+              )
+            }), 
+            colnames(cohort_count)[4:ncol(cohort_count)]  # Name columns starting from '1'
+          )
+)
+
+                        
+
+
+
+```
+
+
+
+
+```{r}
+
+
+```
+
+
+
+```{r}
+
+```
+
+
+
+
+
+```{r}
+
+```
+
+
+
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+
+
+
+
+```{r}
+
+```
+
+
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+
+
+
