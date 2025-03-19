@@ -150,13 +150,34 @@ ggplot(new_groupby_filtered, aes(x = as.Date(paste0(first_purchase_month, "-01")
 
 
 ```{r}
- 
+ # Initial summary table
+
+customer_order_summary <- so_query_result |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    retention_period = as.numeric(difftime(max(order_date), min(order_date), units = "days")),
+    order_count = n_distinct(sales_order_number),  
+    total_revenue = sum(total, na.rm = TRUE)  
+  )
+
+
+merged_data <- merge(customer_order_summary, job_hours_result, by = "customer_id", all.x = TRUE)
+merged_data <- merged_data |> 
+  mutate(
+    revenue_per_hour = total_revenue / completed_hours
+  )
+
+
+merged_data
+
+#write.csv(merged_data, "merged_data.csv", row.names = FALSE)
 ```
 
 
 ```{r}
-so_query_result
-
+#so_query_result
 ```
 
 
@@ -172,13 +193,13 @@ so_query_result
 Retention - Customer Count
 ```{r}
 
-# Create the customer cohort table
+# cohort table
 customer_cohort <- so_query_result |> 
   group_by(customer_id) |> 
   summarise(first_order_month = floor_date(min(order_date), "month")) |> 
   ungroup()
 
-# Join the customer cohort with the sales orders
+# 30 day version
 # sales_orders <- so_query_result |> 
 #   left_join(customer_cohort, by = "customer_id") |> 
 #   mutate(
@@ -186,6 +207,7 @@ customer_cohort <- so_query_result |>
 #   )
 
 
+# month version
 sales_orders <- so_query_result |> 
   left_join(customer_cohort, by = "customer_id") |> 
   mutate(
@@ -193,12 +215,14 @@ sales_orders <- so_query_result |>
   )
 
 
-# Now you can create the cohort analysis table, spanning 24 months
-cohort_table <- sales_orders |> 
-  group_by(first_order_month, months_since_first_order) |> 
-  summarise(customers_in_cohort = n_distinct(customer_id)) |> 
-  spread(key = months_since_first_order, value = customers_in_cohort, fill = 0) |> 
+#main table
+cohort_table <- sales_orders |>
+  group_by(first_order_month, months_since_first_order) |>
+  summarise(customers_in_cohort = n_distinct(customer_id)) |>
+  spread(key = months_since_first_order, value = customers_in_cohort, fill = 0) |>
   arrange(first_order_month)
+
+
 
 # View the cohort table
 #sales_orders
@@ -206,104 +230,33 @@ cohort_table <- sales_orders |>
   #filter(customer_id == 'V006-VONGA')
 
 cohort_table
-#write.csv(sales_orders, "sales_orders.csv", row.names = FALSE)
+#write.csv(cohort_table, "cohort_table_new.csv", row.names = FALSE)
 
 ```
 
 
+Retention - Revenue
 ```{r}
-sales_orders
-```
-
-
-```{r}
-# Create the customer cohort table
+# cohort table
 customer_cohort <- so_query_result |> 
   group_by(customer_id) |> 
   summarise(first_order_month = floor_date(min(order_date), "month")) |> 
   ungroup()
 
-# Join the customer cohort with the sales orders
 sales_orders <- so_query_result |> 
   left_join(customer_cohort, by = "customer_id") |> 
   mutate(
-    months_since_first_order = as.numeric(difftime(order_date, first_order_month, units = "days")) %/% 30
+    months_since_first_order = floor(interval(first_order_month, order_date) / months(1))
   )
 
-# Now you can create the cohort analysis table, summing up the 'total' instead of counting customers
-cohort_table_total <- sales_orders |> 
-  group_by(first_order_month, months_since_first_order) |> 
-  summarise(total_sales_in_cohort = sum(total, na.rm = TRUE)) |>  # Sum 'total' instead of counting customers
-  spread(key = months_since_first_order, value = total_sales_in_cohort, fill = 0) |> 
+cohort_table <- sales_orders |>
+  group_by(first_order_month, months_since_first_order) |>
+  summarise(total_in_cohort = sum(total, na.rm = TRUE)) |>
+  spread(key = months_since_first_order, value = total_in_cohort, fill = 0) |>
   arrange(first_order_month)
 
-# View the cohort table
-cohort_table_total
-
-#write.csv(cohort_table, "cohort_table_total.csv", row.names = FALSE)
-
-```
-
-
-```{r}
-# Step 1: Create the initial customer order summary
-customer_order_summary <- so_query_result |> 
-  group_by(customer_id) |> 
-  summarise(
-    first_order_date = min(order_date),      
-    last_order_date = max(order_date),       
-    days_between = as.numeric(difftime(max(order_date), min(order_date), units = "days"))
-  ) |> 
-  ungroup()
-
-# Step 2: Calculate the average days between first and last order for all customers
-avg_days_all_customers <- mean(customer_order_summary$days_between, na.rm = TRUE)
-
-# Step 3: Add the average days to the customer order summary
-customer_order_summary <- customer_order_summary |> 
-  mutate(avg_days_diff = avg_days_all_customers)
-
-# Step 4: Set the cutoff date for churn (e.g., 60 days ago)
-cutoff_date <- Sys.Date() - 60
-
-# Step 5: Calculate retention period and add 'OrderedWithin60' column
-customer_order_summary <- so_query_result |> 
-  group_by(customer_id) |> 
-  summarise(
-    first_order_date = min(order_date),      
-    last_order_date = max(order_date),       
-    retention_period = as.numeric(difftime(max(order_date), min(order_date), units = "days"))  # Retention period (days between first and last order)
-  ) |> 
-  ungroup() |> 
-  mutate(
-    OrderedWithin60 = last_order_date >= (Sys.Date() - 60)  # Check if last order date is within the last 60 days
-  )
-
-# Step 6: Add distinct order count as a new column
-customer_order_summary <- so_query_result |> 
-  group_by(customer_id) |> 
-  summarise(
-    order_count = n_distinct(sales_order_number)  # Count distinct order numbers per customer
-  ) |> 
-  right_join(customer_order_summary, by = "customer_id")  # Join the distinct order count back to the customer order summary
-
-# Step 7: Add a new column for retention period in months
-customer_order_summary <- customer_order_summary |> 
-  mutate(
-    retention_period_months = retention_period / 30  # Dividing by 30 to approximate months
-  )
-
-# View the final customer order summary
-customer_order_summary
-
-
-
-
-
-```
-
-
-```{r}
+cohort_table
+#write.csv(cohort_table, "cohort_table_rev.csv", row.names = FALSE)
 
 ```
 
@@ -315,97 +268,88 @@ customer_order_summary
 
 
 ```{r}
-library(tibble)
-library(formattable)
-
-# Create sample tibble with students and their test scores
-student_scores <- tibble(
-  name = c("Alice", "Bob", "Charlie"),
-  score1 = c(50, 90, 75),
-  score2 = c(78, 92, 88),
-  score3 = c(95, 80, 82)
-)
-
-# Apply formatting with color scale for the scores
-formattable(student_scores, 
-            list(
-              score1 = color_tile("red", "green"),
-              score2 = color_tile("red", "green"),
-              score3 = color_tile("red", "green")
-            ))
+so_query_result
 
 ```
-
 
 
 ```{r}
 
-cohort_count <- read_excel("../metalworkingsolutions-pandas/read_cohort_count.xlsx")
-cohort_count
+# Sample data
+library(dplyr)
 
-# Create a reactable table with conditional formatting for each row starting from column '1'
-reactable(cohort_count, 
-          columns = setNames(
-            lapply(4:ncol(cohort_count), function(i) {  # Start from column '1', so we skip '0' column
-              colDef(
-                style = function(value, index) {
-                  
-                  row <- cohort_count[index, ]
-                  
-                  # Find the min and max for the month values (columns 4 to the end)
-                  min_val <- min(row[4:ncol(cohort_count)], na.rm = TRUE)
-                  max_val <- max(row[4:ncol(cohort_count)], na.rm = TRUE)
-                  
-                 
-                  color_scale <- rescale(value, to = c(0, 1), from = c(min_val, max_val))
-                  
-                  # Define the color scale: red for low, green for high
-                  color <- col_numeric(
-                    palette = c("red", "green"), 
-                    domain = c(0, 1)
-                  )(color_scale)
-                  
-                  # Return the background color
-                  list(background = color)
-                }
-              )
-            }), 
-            colnames(cohort_count)[4:ncol(cohort_count)]  # Name columns starting from '1'
-          )
-)
 
-                        
+# Filter
+filtered_data <- sales_orders %>%
+  filter(first_order_month == as.Date("2023-01-01"))
+
+# result df
+result <- data.frame(first_order_month = as.Date("2023-01-01"))
+
+# Loop through each month (0-22)
+for (i in 0:22) {
+  count_customers <- filtered_data |> 
+    filter(months_since_first_order >= i) |> 
+    summarise(customer_count = n_distinct(customer_id)) |> 
+    pull(customer_count)
+  
+  result[[paste0("Month_", i)]] <- count_customers
+}
+
+# Show the result
+result
+
 
 
 
 ```
-
-
 
 
 ```{r}
+library(dplyr)
+
+# Ensure first_order_month is a Date column
+sales_orders <- sales_orders %>%
+  mutate(first_order_month = as.Date(first_order_month))
+
+# Create an empty result data frame to store the counts
+result <- data.frame()
+
+# Loop through all unique first_order_months
+for (first_month in unique(sales_orders$first_order_month)) {
+  # Filter data for the specific first_order_month
+  filtered_data <- sales_orders %>%
+    filter(first_order_month == first_month)
+  
+  # Initialize a vector to store counts for the months 0-22
+  customer_counts <- c(first_order_month)
+  
+  # Loop to count unique customers for each month (0-22)
+  for (i in 0:22) {
+    count_customers <- filtered_data %>%
+      filter(months_since_first_order >= i) %>%
+      summarise(customer_count = n_distinct(customer_id)) %>%
+      pull(customer_count)
+    
+    customer_counts <- c(customer_counts, count_customers)
+  }
+  
+  # Bind the result for the current first_order_month to the overall result
+  result <- rbind(result, customer_counts)
+}
+
+# Set the column names
+colnames(result) <- c("first_order_month", paste0("Month_", 0:22))
+
+# Show the result
+print(result)
+
+ 
+
+
 
 
 ```
-
-
-
-```{r}
-
-```
-
-
-
-
-
-```{r}
-
-```
-
-
-
-
-
 
 
 ```{r}
@@ -414,14 +358,19 @@ reactable(cohort_count,
 
 
 
+```{r}
+
+```
+
 
 ```{r}
 
 ```
 
 
+```{r}
 
-
+```
 
 
 ```{r}
@@ -429,6 +378,19 @@ reactable(cohort_count,
 ```
 
 
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
 
 
 ```{r}
