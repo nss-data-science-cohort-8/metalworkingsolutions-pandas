@@ -5,6 +5,7 @@ library(RPostgres)
 library(tidyverse)
 library(dplyr)
 library(dbplyr)
+library(plotly)
 
 con <- dbConnect(Postgres(),                
                  dbname = 'metalworkingsolutions',
@@ -38,9 +39,43 @@ job_counts_by_customer <- combined_operations |>
   group_by(jmp_customer_organization_id) |>
   summarize(distinct_job_id_count = n_distinct(jmo_job_id)) |>
   arrange(desc(distinct_job_id_count))
-
-job_counts_by_customer
 ```
 
+```{r}
+mws_color_pallete <- colorRampPalette(c("#445162", "#A1A7B0", "#C61126"))(20)
+
+top_20_customers <- top_20_customers |> 
+  arrange((distinct_job_id_count))
+
+top_20_customers$jmp_customer_organization_id <- factor(
+  top_20_customers$jmp_customer_organization_id,
+  levels = top_20_customers$jmp_customer_organization_id
+)
+
+top_20_customer_count_bar_chart <- ggplot(top_20_customers, 
+                          aes(x = jmp_customer_organization_id,
+                              y = distinct_job_id_count,
+                              fill = jmp_customer_organization_id,
+                              text = distinct_job_id_count)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Total Number of Jobs Fulfilled by Top 20 Customers",
+       x = "Customer Organization",
+       y = "Number of Jobs") +
+  theme_minimal(base_size = 15) +
+  theme(axis.text.y = element_text(size = 9, color= "#333333" ),
+        legend.position = "none",
+        panel.grid = element_blank(),
+        axis.line = element_line(color = "black"),
+        axis.ticks = element_line(color = "black"),
+        plot.title = element_text(face = "plain", size = 16, hjust = 0.5),
+        axis.title = element_text(face = "plain", size = 13)) +
+  scale_fill_manual(values = mws_color_pallete)
+
+plotly_version <- ggplotly(top_20_customer_count_bar_chart, tooltip = "text") |>
+  layout(hoverlabel = list(bgcolor = "white"))
+
+plotly_version
+```
 
 
