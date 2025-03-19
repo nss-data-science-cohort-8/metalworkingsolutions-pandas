@@ -179,7 +179,7 @@ complex_orders <- jobs |>
   filter(customer_id %in% big_spenders) |>
   mutate(order_id = str_sub(job_id, 1, 5)) |>
   group_by(customer_id, order_id) |>
-  summarise(jobs_per_order = n_distinct(job_id)) |>
+  summarise(jobs_per_order = n_distinct(job_id), .groups = "drop") |>
   arrange(desc(jobs_per_order), customer_id)
 
 # interactive visualization
@@ -275,11 +275,11 @@ ggplotly(p3, tooltip = "text")
 top_20_total_jobs <- jobs |>
   mutate(order_id = str_sub(job_id, 1, 5)) |>
   group_by(order_id, customer_id) |>
-  summarise(n_jobs = n_distinct(job_id)) |>
+  summarise(n_jobs = n_distinct(job_id), .groups = "drop") |>
   arrange(desc(n_jobs))
 
 
-top_20_total_jobs |>
+p4 <- top_20_total_jobs |>
   head(20) |>
   ggplot(
     aes(
@@ -320,4 +320,10 @@ top_20_total_jobs |>
   theme(
     axis.text.y = element_text(angle = 0, hjust = 1) # Adjust to horizontal
   )
-```
+
+ggplotly(p4, tooltip = "text"
+      
+      
+         # TODO: 
+- revenue per hour by customer? 
+- ratio of jobs : order 
