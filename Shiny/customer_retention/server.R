@@ -15,7 +15,7 @@ function(input, output, session) {
     switch(input$tableChoice,
            "cohort_count" = cohort_count,
            "cohort_count_normalized" = cohort_count_normalized,
-           "cohort_revenue" = cohort_revenue
+           "cohort_cumulative" = cohort_cumulative
     )
   })
   

@@ -18,7 +18,7 @@ ui <- fluidPage(
       # Dropdown menu for table selection with smaller width
       selectInput("tableChoice", 
                   "Choose a table:",
-                  choices = c("cohort_count", "cohort_count_normalized", "cohort_revenue"),
+                  choices = c("cohort_count", "cohort_count_normalized", "cohort_cumulative"),
                   selected = "cohort_count",
                   width = '150px'),
       

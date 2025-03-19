@@ -77,8 +77,40 @@ cohort_count_normalized <- cohort_count |>
 # spot check
 print(cohort_count_normalized)
 
+#COHORT CUMULATIVE
 
-cohort_revenue<- read_excel("data/read_cohort_revenue.xlsx")
+# Identify all unique cohort start months
+all_cohorts <- sales_orders |> 
+  distinct(first_order_month) |> 
+  arrange(first_order_month) |> 
+  pull(first_order_month)
+
+# create empty tibble
+cohort_cumulative <- data.frame(first_order_month = all_cohorts)
+
+# loop through each cohort
+for (cohort_date in all_cohorts) {
+  # Filter data for this cohort
+  cohort_data <- sales_orders |> 
+    filter(first_order_month == cohort_date)
+  
+  # loop through each month (0-22)
+  for (i in 0:22) {
+    count_customers <- cohort_data |> 
+      filter(months_since_first_order >= i) |> 
+      summarise(customer_count = n_distinct(customer_id)) |> 
+      pull(customer_count)
+    
+    # add to dataframe
+    value_to_add <- if(count_customers == 0) NA else count_customers
+    cohort_cumulative[cohort_cumulative$first_order_month == cohort_date, as.character(i)] <- value_to_add
+  }
+}
+
+# spot check
+print(cohort_cumulative)
+
+
 
 
 
