@@ -10,7 +10,6 @@
 # UI Code
 
 
-# Define the UI
 ui <- fluidPage(
   titlePanel("Customer Change Analysis"),
   
@@ -21,33 +20,35 @@ ui <- fluidPage(
                   "Choose a table:",
                   choices = c("cohort_count", "cohort_count_normalized", "cohort_revenue"),
                   selected = "cohort_count",
-                  width = '100px'),  # Set the width of the dropdown
+                  width = '150px'),
       
-      # Adds a line break for space between dropdown and description
+      # space between dropdown and description
       tags$br(),
       
-      # Separate div for description text output, ensuring it’s a separate block below the dropdown
-      div(
-        style = "margin-top: 20px;",  # Controls the space between the dropdown and description
-        textOutput("descriptionText")
-      )
+      # text box
+      tags$div(
+        style = "border: 1px solid #ccc; padding: 10px; background-color: #f8f8f8; margin-top: 15px;",
+        "This is a test text box with some information that cannot be edited."
+      ),
+      
+      # sidebar panel width
+      width = 3
     ),
     
     mainPanel(
-      # Title for the table
-      h3("Customer Retention Table"),  # Table title
+      # title - table
+      h3("Customer Retention Table"),
       
-      # Render the table with increased size
+      # render table
       DTOutput("cohortTable")
     )
   ),
   
-  # Custom CSS for styling the table and the dropdown
+  # css to style table
   tags$style(HTML("
     #cohortTable {
       width: 100%;  /* Make the table take up the full width */
-      height: 600px;  /* Set a fixed height for the table */
-      overflow-y: scroll;  /* Allow scrolling if the table is too large */
+      /* Removed height and overflow properties */
     }
     
     .selectize-input {
@@ -55,7 +56,6 @@ ui <- fluidPage(
     }
   "))
 )
-
 
 
 
