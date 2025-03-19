@@ -1,0 +1,87 @@
+Perform a breakdown of customers by operation (as indicated by the jmo_process short_description in the job_operations_2023 or job_operations_2024 table)
+
+```{r}
+library(DBI)
+library(RPostgres)
+library(tidyverse)
+library(dplyr)
+library(dbplyr)
+library(plotly)
+library(stringr)
+
+con <- dbConnect(Postgres(),                
+                 dbname = 'metalworkingsolutions',
+                 host = 'localhost',    
+                 port = 5432, 
+                 user = 'postgres',
+                 password = rstudioapi::askForPassword("Database password"))
+```
+
+```{r}
+jobs_tbl <- tbl(con, "jobs")
+jobs_tibble <- jobs_tbl |> collect()
+
+job_operations_2023_tbl <-  tbl(con,"job_operations_2023")
+job_operations_2023_tibble <- job_operations_2023_tbl|> collect()
+
+job_operations_2024_tbl <-  tbl(con,"job_operations_2024")
+job_operations_2024_tibble <- job_operations_2024_tbl|> collect()
+```
+
+```{r}
+combined_operations <- bind_rows(
+  job_operations_2023_tibble |> select(jmo_job_id),
+  job_operations_2024_tibble |> select(jmo_job_id)
+)
+
+top_20_customers <- combined_operations |>
+  select(jmo_job_id) |>
+  distinct() |>
+  inner_join(jobs_tibble, by = c("jmo_job_id" = "jmp_job_id")) |>
+  group_by(jmp_customer_organization_id) |>
+  summarize(distinct_job_id_count = n_distinct(jmo_job_id)) |>
+  arrange(desc(distinct_job_id_count)) |> 
+  head(20) |> 
+  select(jmp_customer_organization_id)
+```
+
+```{r}
+customer_ids <- top_20_customers$jmp_customer_organization_id
+
+top_20_process_summary <- org_process_summary_per_customer |>
+  filter(jmp_customer_organization_id %in% customer_ids)
+```
+
+```{r}
+process_counts_by_customer <- bind_rows(
+  job_operations_2023_tibble |> 
+    select(jmo_job_id, jmo_process_short_description) |>
+    inner_join(jobs_tibble, by = c("jmo_job_id" = "jmp_job_id")) |>
+    select(jmp_customer_organization_id, jmo_process_short_description, jmo_job_id),
+  job_operations_2024_tibble |> 
+    select(jmo_job_id, jmo_process_short_description) |>
+    inner_join(jobs_tibble, by = c("jmo_job_id" = "jmp_job_id")) |>
+    select(jmp_customer_organization_id, jmo_process_short_description, jmo_job_id) 
+) |>
+  filter(jmp_customer_organization_id %in% customer_ids) |>
+  distinct(jmp_customer_organization_id, jmo_process_short_description, jmo_job_id) |>
+  group_by(jmp_customer_organization_id, jmo_process_short_description) |>
+  summarise(process_count = n(), .groups = "keep") |>
+  mutate(process_with_count = paste0(jmo_process_short_description, " (", process_count, ")")) |>
+  group_by(jmp_customer_organization_id) |>
+  summarise(
+    process_descriptions = paste(process_with_count[order(jmo_process_short_description)], collapse = ", "),
+    total_processes = n_distinct(jmo_process_short_description),
+    total_count = sum(process_count),
+    .groups = "drop"
+  ) |>
+  arrange(desc(total_count))
+
+process_counts_by_customer
+```
+
+
+
+
+
+
