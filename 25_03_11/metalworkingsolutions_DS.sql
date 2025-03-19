@@ -176,3 +176,75 @@ INNER JOIN first_transaction AS f
 GROUP BY year, month
 ORDER BY year, month;
 
+-- find out what new customers ordered
+WITH first_transaction AS (
+    SELECT 
+        omp_customer_organization_id,
+        MIN(omp_order_date) AS first_purchase_date
+    FROM sales_orders
+    GROUP BY omp_customer_organization_id
+)
+
+SELECT *
+FROM (
+    SELECT 
+        o.omp_customer_organization_id,
+        o.omp_order_date,
+        DATE_TRUNC('month', o.omp_order_date) AS order_month,
+        CASE 
+            WHEN DATE_TRUNC('month', f.first_purchase_date) = DATE_TRUNC('month', o.omp_order_date)
+            THEN 'New'
+            ELSE 'Existing'
+        END AS customer_type,
+        j.jmp_part_short_description AS part_type,
+        COUNT(j.jmp_part_short_description) AS no_ordered_part
+    FROM sales_orders AS o
+    INNER JOIN first_transaction AS f
+        ON o.omp_customer_organization_id = f.omp_customer_organization_id
+    INNER JOIN jobs AS j
+        ON j.jmp_customer_organization_id = o.omp_customer_organization_id
+    GROUP BY 
+        o.omp_customer_organization_id,
+        o.omp_order_date,
+        order_month,
+        customer_type,
+        j.jmp_part_short_description
+) subquery
+WHERE customer_type = 'New'
+ORDER BY omp_order_date;
+--find out what existing customers ordered
+WITH first_transaction AS (
+    SELECT 
+        omp_customer_organization_id,
+        MIN(omp_order_date) AS first_purchase_date
+    FROM sales_orders
+    GROUP BY omp_customer_organization_id
+)
+
+SELECT *
+FROM (
+    SELECT 
+        o.omp_customer_organization_id,
+        o.omp_order_date,
+        DATE_TRUNC('month', o.omp_order_date) AS order_month,
+        CASE 
+            WHEN DATE_TRUNC('month', f.first_purchase_date) = DATE_TRUNC('month', o.omp_order_date)
+            THEN 'New'
+            ELSE 'Existing'
+        END AS customer_type,
+        j.jmp_part_short_description AS part_type,
+        COUNT(j.jmp_part_short_description) AS no_ordered_part
+    FROM sales_orders AS o
+    INNER JOIN first_transaction AS f
+        ON o.omp_customer_organization_id = f.omp_customer_organization_id
+    INNER JOIN jobs AS j
+        ON j.jmp_customer_organization_id = o.omp_customer_organization_id
+    GROUP BY 
+        o.omp_customer_organization_id,
+        o.omp_order_date,
+        order_month,
+        customer_type,
+        j.jmp_part_short_description
+) subquery
+WHERE customer_type = 'Existing'
+ORDER BY omp_order_date;

@@ -107,6 +107,9 @@ ggplot(customer_data_percent_long, aes(x = date, y = percentage, fill = customer
 
 ```
 ```{r}
+library(DBI)
+library(RPostgres)
+library(tidyverse)
 con <- dbConnect(Postgres(),                 
                  dbname = 'metalworking solution',    
                  host = 'localhost',         
@@ -115,7 +118,6 @@ con <- dbConnect(Postgres(),
                  password = 'Postgre')
 
 
-# SQL Query to Get New vs Existing Customers Per Month
 query <- "
 WITH first_transaction AS (
     SELECT 
@@ -160,22 +162,6 @@ customer_data_long <- customer_data %>%
                       values_to = "count")
 
 
-ggplot(customer_data_long, aes(x = date, y = count, fill = customer_type)) +
-  geom_bar(stat = "identity", position = "stack") +
-  labs(title = "New vs Existing Customers Per Month",
-       x = "Month",
-       y = "Number of Customers",
-       fill = "Customer Type") +
-  theme_minimal() +
-  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-# Calculate percentages
-customer_data_percent <- customer_data %>%
-  mutate(total_customers = new_customers + existing_customers,
-         new_customers_pct = (new_customers / total_customers) * 100,
-         existing_customers_pct = (existing_customers / total_customers) * 100,
-         date = as.Date(paste(year, month, "01", sep = "-"))) %>%
-  select(date, new_customers_pct, existing_customers_pct)
 
 # Pivot data to longer format for ggplot
 customer_data_percent_long <- customer_data_percent %>%
@@ -194,7 +180,7 @@ ggplot(customer_data_percent_long, aes(x = date, y = percentage, fill = customer
   scale_fill_manual(labels = c("Existing Customers", "New Customers"),
                     values = c("#445162", "#C61126")) +
   scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +
-  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1), breaks = seq(0, 100, 10)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11),
         legend.text = element_text(size = 14),
         axis.title = element_text(size = 16))
@@ -210,6 +196,7 @@ library(ggplot2)
 library(lubridate)
 library(bit64)
 library(plotly)
+library(acepack)
 
 # Establish database connection
 con <- dbConnect(RPostgres::Postgres(),
@@ -286,7 +273,67 @@ p_customer <- ggplot(customer_cohort_summary, aes(
 
 # Interactive plot with improved contrast and numeric axis labels
 ggplotly(p_customer, tooltip = "text")
+
+last_months_since_first_order <- customer_cohort_summary %>%
+  group_by(omp_customer_organization_id) %>%
+  summarise(last_month_since_first_order = max(months_since_first_order), .groups = "drop")
+
+customer_plot_order <- customer_cohort_summary %>%
+  select(omp_customer_organization_id, customer_index) %>%
+  distinct() %>%
+  left_join(company_info, by = "omp_customer_organization_id") %>%
+  arrange(desc(customer_index)) 
 ```
+```{r}
+library(DBI)
+library(RPostgres)
+library(ggplot2)
+library(dplyr)
+
+# Connect to PostgreSQL Database
+con <- dbConnect(RPostgres::Postgres(),
+                 dbname = "metalworking solution",
+                 host = 'localhost',
+                 port = 5432, 
+                 user = 'postgres',
+                 password = 'Postgre')
+
+# SQL Query to Get Orders Per Part Type
+query <- "
+SELECT  
+    s.omp_customer_organization_id AS customer_name,
+    COUNT(DISTINCT s.omp_sales_order_id) AS NoOfOrder, 
+    j.jmp_part_short_description AS part_type
+FROM sales_orders AS s
+INNER JOIN jobs AS j ON s.omp_customer_organization_id = j.jmp_customer_organization_id
+GROUP BY s.omp_customer_organization_id, j.jmp_part_short_description
+HAVING COUNT(DISTINCT s.omp_sales_order_id) = 1
+ORDER BY s.omp_customer_organization_id;
+"
+
+# Fetch Data from Database
+customer_data <- dbGetQuery(con, query)
+
+# Disconnect from Database
+dbDisconnect(con)
+
+# Convert to Numeric if Necessary
+customer_data_summary <- customer_data %>%
+  group_by(part_type) %>%
+  summarise(total_nooforder = sum(nooforder, na.rm = TRUE), .groups = "drop")
+
+# Plot aggregated data
+ggplot(customer_data_summary, aes(x = reorder(part_type, total_nooforder), y = total_nooforder, fill = part_type)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Orders Per Part Type",
+       x = "Part Type",
+       y = "Number of Orders",
+       fill = "Part Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
 ```{r}
 library(DBI)
 library(RPostgres)
@@ -415,94 +462,7 @@ ggplot(customer_data_percent_long, aes(x = date, y = percentage, fill = customer
         legend.text = element_text(size = 14),
         axis.title = element_text(size = 16))
 ```
-```{r}
-library(DBI)
-library(RPostgres)
-library(dplyr)
-library(ggplot2)
 
-# Connect to PostgreSQL database
-con <- dbConnect(Postgres(),
-                 dbname = 'metalworking solution',
-                 host = 'localhost',
-                 port = 5432,
-                 user = 'postgres',
-                 password = 'Postgre')
-
-# Execute SQL query and fetch results into a dataframe
-df <- dbGetQuery(con, "
-WITH first_transaction AS (
-    SELECT 
-        omp_customer_organization_id,
-        MIN(omp_order_date) AS first_purchase_date
-    FROM sales_orders
-    GROUP BY omp_customer_organization_id
-)
-
-SELECT *
-FROM (
-    SELECT 
-        o.omp_customer_organization_id,
-        o.omp_order_date,
-        DATE_TRUNC('month', o.omp_order_date) AS order_month,
-        CASE 
-            WHEN DATE_TRUNC('month', f.first_purchase_date) = DATE_TRUNC('month', o.omp_order_date)
-            THEN 'New'
-            ELSE 'Existing'
-        END AS customer_type,
-        j.jmp_part_short_description AS part_type,
-        COUNT(j.jmp_part_short_description) AS no_ordered_part
-    FROM sales_orders AS o
-    INNER JOIN first_transaction AS f
-        ON o.omp_customer_organization_id = f.omp_customer_organization_id
-    INNER JOIN jobs AS j
-        ON j.jmp_customer_organization_id = o.omp_customer_organization_id
-    GROUP BY 
-        o.omp_customer_organization_id,
-        o.omp_order_date,
-        order_month,
-        customer_type,
-        j.jmp_part_short_description
-) subquery
-WHERE customer_type = 'New'
-ORDER BY omp_order_date;")
-
-# Disconnect from the database
-dbDisconnect(con)
-
-# Extract year from order date
-df_filtered <- df %>%
-  filter(order_month %in% c("2023", "2024"))
-
-# Calculate parts summary grouped by year and part_type
-parts_summary <- df_filtered %>%
-  group_by(order_month, part_type) %>%
-  summarise(total_ordered = sum(no_ordered_part)) %>%
-  filter(total_ordered != 0)
-
-# Ensure consistent ordering based on 2013
-parts_summary$part_type <- factor(parts_summary$part_type, levels = rev(part_order_2013))
-
-# Keep only top 30 parts from 2013 for visualization
-top_parts <- head(parts_summary, 20)
-parts_summary <- parts_summary %>% 
-  filter(part_type %in% top_parts)
-
-# Plot bar chart with separate facets for 2023 and 2024
-ggplot(parts_summary, aes(x = part_type, y = total_ordered, fill = total_ordered)) +
-  geom_col(show.legend = FALSE) +
-  coord_flip() +
-  facet_wrap(~year, scales = "free_y") +
-  labs(title = "#AED6F1", high = "#1B4F72")"Distribution of Ordered Parts (New Customers) - 2023 vs 2024",
-       x = "Part Type",
-       y = "Number Ordered") +
-  theme_minimal() +
-  theme(axis.text.y = element_text(size = 9),
-        plot.title = element_text(size = 14, face = "bold"),
-        axis.text.x = element_text(size = 10),
-        strip.text = element_text(size = 12, face = "bold")) +
-  scale_fill_gradient(low = 
-```
 
 
 ```{r}
@@ -693,4 +653,7 @@ ggplot(top_parts_per_year, aes(x = part_type, y = total_ordered, fill = total_or
   scale_fill_gradient(low = "#F9E79F", high = "#C61126")
 
 ```
+```{r}
+ # Load required libraries
 
+```
