@@ -18,3 +18,14 @@ SELECT
 FROM sales_orders;
 
 
+SELECT 
+    jmp_customer_organization_id,
+    jmp_job_id,
+    jmp_part_id,
+    jmp_part_short_description,
+    jmp_order_quantity,
+    jmp_production_quantity,
+    jmp_production_due_date
+
+FROM jobs
+-- LIMIT 5;
