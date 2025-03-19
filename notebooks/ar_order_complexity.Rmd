@@ -164,7 +164,7 @@ p1 <- top_20_jobs |>
     axis.text.x = element_text(angle = 55, hjust = 0.25)
   )
 
-ggplotly(p1)
+ggplotly(p1, tooltip = "text")
 ```
 
 
@@ -321,9 +321,24 @@ p4 <- top_20_total_jobs |>
     axis.text.y = element_text(angle = 0, hjust = 1) # Adjust to horizontal
   )
 
-ggplotly(p4, tooltip = "text"
-      
-      
-         # TODO: 
+ggplotly(p4, tooltip = "text")
+```
+
+
+
+```{r}
+n_jobs_per_order <- jobs |>
+  mutate(order_id = str_sub(job_id, 1, 5)) |>
+  group_by(order_id) |>
+  summarize(n_jobs = n_distinct(job_id))
+
+
+mean(n_jobs_per_order$n_jobs)
+```
+---
+# TODO: 
+- add color gradients to bar charts
 - revenue per hour by customer? 
-- ratio of jobs : order 
+- ratio of jobs : order
+- categorize orders by complexity and revenue generated
+- define thresholds and decide which types of orders are most desireable
