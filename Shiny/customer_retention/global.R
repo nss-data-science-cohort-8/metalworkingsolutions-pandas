@@ -110,6 +110,8 @@ for (cohort_date in all_cohorts) {
 # spot check
 print(cohort_cumulative)
 
+cohort_cumulative$first_order_month <- format(cohort_cumulative$first_order_month, "%Y-%b")
+
 #COHORT CUMULATIVE NORMALIZED
 
 # create empty tibble
@@ -155,4 +157,5 @@ for (cohort_date in all_cohorts) {
 # spot check
 print(cohort_cumulative_normalized)
 
+cohort_cumulative_normalized$first_order_month <- format(cohort_cumulative_normalized$first_order_month, "%Y-%b")
 

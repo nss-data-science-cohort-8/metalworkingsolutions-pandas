@@ -20,7 +20,7 @@ ui <- fluidPage(
                   "Choose a table:",
                   choices = c("cohort_count", "cohort_count_normalized", "cohort_cumulative", "cohort_cumulative_normalized"),
                   selected = "cohort_count",
-                  width = '150px'),
+                  width = '200px'),
       
       # space between dropdown and description
       tags$br(),
