@@ -110,8 +110,49 @@ for (cohort_date in all_cohorts) {
 # spot check
 print(cohort_cumulative)
 
+#COHORT CUMULATIVE NORMALIZED
+
+# create empty tibble
+cohort_cumulative_normalized <- data.frame(first_order_month = all_cohorts)
+
+# loop through each cohort
+for (cohort_date in all_cohorts) {
+  # Filter data for this cohort
+  cohort_data <- sales_orders |> 
+    filter(first_order_month == cohort_date)
+  
+  # get grand total (month 0)
+  initial_count <- cohort_data |> 
+    filter(months_since_first_order == 0) |> 
+    summarise(customer_count = n_distinct(customer_id)) |> 
+    pull(customer_count)
+  
+  # store grand total in "0"
+  cohort_cumulative_normalized[cohort_cumulative_normalized$first_order_month == cohort_date, "0"] <- initial_count
+  
+  # percentages for months 1-22
+  for (i in 1:22) {
+    # Get count of customers still active after i months
+    count_customers <- cohort_data |> 
+      filter(months_since_first_order >= i) |> 
+      summarise(customer_count = n_distinct(customer_id)) |> 
+      pull(customer_count)
+    
+    # percentage of grand total
+    if (initial_count > 0) {
+      percentage <- round((count_customers / initial_count) * 100, 1)
+      # Add to dataframe, replacing 0 with NA
+      value_to_add <- if(percentage == 0) NA else percentage
+    } else {
+      value_to_add <- NA
+    }
+    
+    cohort_cumulative_normalized[cohort_cumulative_normalized$first_order_month == cohort_date, as.character(i)] <- value_to_add
+  }
+}
 
 
-
+# spot check
+print(cohort_cumulative_normalized)
 
 

@@ -15,20 +15,20 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      # Dropdown menu for table selection with smaller width
+      # dropdown menu
       selectInput("tableChoice", 
                   "Choose a table:",
-                  choices = c("cohort_count", "cohort_count_normalized", "cohort_cumulative"),
+                  choices = c("cohort_count", "cohort_count_normalized", "cohort_cumulative", "cohort_cumulative_normalized"),
                   selected = "cohort_count",
                   width = '150px'),
       
       # space between dropdown and description
       tags$br(),
       
-      # text box
+      # dynamic text
       tags$div(
         style = "border: 1px solid #ccc; padding: 10px; background-color: #f8f8f8; margin-top: 15px;",
-        "This is a test text box with some information that cannot be edited."
+        textOutput("descriptionText") 
       ),
       
       # sidebar panel width
