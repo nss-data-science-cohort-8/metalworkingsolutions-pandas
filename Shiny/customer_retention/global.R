@@ -13,8 +13,6 @@ library(reactable)
 library(DT)
 library(scales)
 
-#cohort_count <- read_excel("data/read_cohort_count.xlsx")
-#cohort_count_normalized <- read_excel("data/read_cohort_count_normalized.xlsx")
 
 # Database
 con <- dbConnect(Postgres(),                
@@ -51,6 +49,7 @@ customer_cohort <- so_query_result |>
   summarise(first_order_month = floor_date(min(order_date), "month")) |> 
   ungroup()
 
+print(customer_cohort)
 
 sales_orders <- so_query_result |> 
   left_join(customer_cohort, by = "customer_id") |> 
@@ -77,6 +76,7 @@ cohort_count_pct <- cohort_count |>
 # spot check
 print(cohort_count_pct)
 
+
 #COHORT CUMULATIVE
 
 # Identify all unique cohort start months
@@ -101,7 +101,7 @@ for (cohort_date in all_cohorts) {
       summarise(customer_count = n_distinct(customer_id)) |> 
       pull(customer_count)
     
-    # add to dataframe
+    # add to data frame
     value_to_add <- if(count_customers == 0) NA else count_customers
     cohort_cumulative[cohort_cumulative$first_order_month == cohort_date, as.character(i)] <- value_to_add
   }
@@ -112,6 +112,7 @@ print(cohort_cumulative)
 
 cohort_cumulative$first_order_month <- format(cohort_cumulative$first_order_month, "%Y-%b")
 
+
 #COHORT CUMULATIVE NORMALIZED
 
 # create empty tibble
@@ -119,7 +120,7 @@ cohort_cumulative_pct <- data.frame(first_order_month = all_cohorts)
 
 # loop through each cohort
 for (cohort_date in all_cohorts) {
-  # Filter data for this cohort
+  # filter data for this cohort
   cohort_data <- sales_orders |> 
     filter(first_order_month == cohort_date)
   
@@ -153,9 +154,22 @@ for (cohort_date in all_cohorts) {
   }
 }
 
-
 # spot check
 print(cohort_cumulative_pct)
 
 cohort_cumulative_pct$first_order_month <- format(cohort_cumulative_pct$first_order_month, "%Y-%b")
 
+#UNIQUE CUSTOMERS
+
+customers_month <- so_query_result |> 
+  mutate(order_month = floor_date(order_date, "month"))
+
+unique_customers <- customers_month |> 
+  group_by(order_month) |> 
+  summarise(new_customers = n_distinct(customer_id)) |> 
+  mutate(
+    simple_average = sum(new_customers) / n()
+  )
+
+# spot check
+print(unique_customers)

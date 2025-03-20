@@ -10,7 +10,8 @@
 
 
 function(input, output, session) {
-  # reactive
+  
+  # reactive 
   selected_table <- reactive({
     switch(input$tableChoice,
            "cohort_count" = cohort_count,
@@ -20,22 +21,22 @@ function(input, output, session) {
     )
   })
   
-  # render table
+  # Render the cohort table
   output$cohortTable <- renderDT({
     table_data <- selected_table()
     
-    # replace all nas
+    # Replace NAs in the table
     table_data[] <- lapply(table_data, function(x) {
       if (is.factor(x)) {
-        levels(x) <- c(levels(x), "")  # add empty level for factors
-        x[is.na(x)] <- ""  # replace nas
+        levels(x) <- c(levels(x), "")  # Add empty level for factors
+        x[is.na(x)] <- ""  # Replace NAs with empty strings
       } else {
-        x[is.na(x)] <- ""  # replace nas
+        x[is.na(x)] <- ""  # Replace NAs with empty strings
       }
       return(x)
     })
     
-    # render the dt
+    # Render datatable
     datatable(
       table_data,
       options = list(
@@ -48,7 +49,7 @@ function(input, output, session) {
             var endCol = 24;   
             var rowValues = [];
             
-            // Collect the values from columns to be colored
+            // Collect values from columns to be colored
             for (var i = startCol; i <= endCol; i++) {
               if (data[i] !== null && data[i] !== '') {
                 var val = parseFloat(data[i]);
@@ -64,7 +65,7 @@ function(input, output, session) {
 
               // Apply color gradient from red to green
               rowValues.forEach(function(item) {
-                if (minVal === maxVal) return; // Skip coloring if values are all the same
+                if (minVal === maxVal) return; // Skip coloring if all values are the same
                 
                 var ratio = (item.value - minVal) / (maxVal - minVal);
                 var red = Math.round(255 * (1 - ratio));
@@ -80,17 +81,45 @@ function(input, output, session) {
     )
   })
   
-  # dynamic text
+  # Dynamic description text
   output$descriptionText <- renderText({
     switch(input$tableChoice,
            "cohort_count" = "This table shows the cohort count, representing the number of unique customers per cohort for each month.",
            "cohort_count_pct" = "This table shows the normalized cohort count, representing the proportion of customers retained over time per cohort.",
            "cohort_cumulative" = "This table displays the cumulative count.",
            "cohort_cumulative_pct" = "This table displays the cumulative count normalized."
-           
     )
   })
+  
+  # Render plot
+  output$customerPlot <- renderPlot({
+    
+    
+    ggplot(unique_customers, aes(x = order_month, y = new_customers)) +
+      geom_line(color = "#0073C2FF", size = 1.2) +  
+      geom_point(color = "#D55E00", size = 3) +      
+      geom_hline(aes(yintercept = simple_average), 
+                 color = "orange", 
+                 linetype = "dotted", 
+                 size = 1) +  
+      labs(
+        title = "Unique Customers by Month",              
+        subtitle = "Tracking customer growth over time",  
+        x = " ",                                          
+        y = "Unique Customers",                           
+        caption = "Data Source: Sales Orders"             
+      ) +
+      theme_minimal() +                                  
+      scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +  
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),  
+        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  
+        plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"),  
+        plot.caption = element_text(hjust = 1, size = 10, face = "italic")   
+      )
+  })
 }
+
 
 
 

@@ -11,52 +11,59 @@
 
 
 ui <- fluidPage(
-  titlePanel("Customer Change Analysis"),
+  titlePanel("Customer Base Changes Over Time"),
   
   sidebarLayout(
     sidebarPanel(
-      # dropdown menu
+      # dropdown 
       selectInput("tableChoice", 
                   "Choose a table:",
                   choices = c("cohort_count", "cohort_count_pct", "cohort_cumulative", "cohort_cumulative_pct"),
                   selected = "cohort_count",
                   width = '200px'),
       
-      # space between dropdown and description
+      # add space btw dropdown and description
       tags$br(),
       
-      # dynamic text
+      # dynamic text 
       tags$div(
         style = "border: 1px solid #ccc; padding: 10px; background-color: #f8f8f8; margin-top: 15px;",
         textOutput("descriptionText") 
       ),
       
-      # sidebar panel width
-      width = 3
+      # plot in sidebar
+      tags$br(),
+      h4("Customer Growth Plot"),  
+      plotOutput("customerPlot", height = "300px"), 
+      
+      # sidebar width
+      width = 4  
     ),
     
     mainPanel(
-      # title - table
+      # Title for the table section
       h3("Customer Retention Table"),
       
-      # render table
+      # Render table
       DTOutput("cohortTable")
     )
   ),
   
-  # css to style table
+  # CSS to style the table
   tags$style(HTML("
     #cohortTable {
       width: 100%;  /* Make the table take up the full width */
-      /* Removed height and overflow properties */
     }
     
     .selectize-input {
       width: 200px !important;  /* Set the width of the dropdown */
     }
+    
+    #customerPlot {
+      width: 100%;  /* Make the plot take full width of sidebar */
+    }
   "))
 )
-
 
 
 
