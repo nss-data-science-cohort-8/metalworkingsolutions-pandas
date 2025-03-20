@@ -18,7 +18,7 @@ ui <- fluidPage(
       # dropdown menu
       selectInput("tableChoice", 
                   "Choose a table:",
-                  choices = c("cohort_count", "cohort_count_normalized", "cohort_cumulative", "cohort_cumulative_normalized"),
+                  choices = c("cohort_count", "cohort_count_pct", "cohort_cumulative", "cohort_cumulative_pct"),
                   selected = "cohort_count",
                   width = '200px'),
       

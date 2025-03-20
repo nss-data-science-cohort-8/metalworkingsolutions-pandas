@@ -71,11 +71,11 @@ print(cohort_count)
 
 #CUSTOMER COHORT - NORMALIZED
 
-cohort_count_normalized <- cohort_count |>
+cohort_count_pct <- cohort_count |>
   mutate(across(as.character(1:22), ~ round((.x / `0`) * 100, 1), .names = "{.col}"))
 
 # spot check
-print(cohort_count_normalized)
+print(cohort_count_pct)
 
 #COHORT CUMULATIVE
 
@@ -115,7 +115,7 @@ cohort_cumulative$first_order_month <- format(cohort_cumulative$first_order_mont
 #COHORT CUMULATIVE NORMALIZED
 
 # create empty tibble
-cohort_cumulative_normalized <- data.frame(first_order_month = all_cohorts)
+cohort_cumulative_pct <- data.frame(first_order_month = all_cohorts)
 
 # loop through each cohort
 for (cohort_date in all_cohorts) {
@@ -130,7 +130,7 @@ for (cohort_date in all_cohorts) {
     pull(customer_count)
   
   # store grand total in "0"
-  cohort_cumulative_normalized[cohort_cumulative_normalized$first_order_month == cohort_date, "0"] <- initial_count
+  cohort_cumulative_pct[cohort_cumulative_pct$first_order_month == cohort_date, "0"] <- initial_count
   
   # percentages for months 1-22
   for (i in 1:22) {
@@ -149,13 +149,13 @@ for (cohort_date in all_cohorts) {
       value_to_add <- NA
     }
     
-    cohort_cumulative_normalized[cohort_cumulative_normalized$first_order_month == cohort_date, as.character(i)] <- value_to_add
+    cohort_cumulative_pct[cohort_cumulative_pct$first_order_month == cohort_date, as.character(i)] <- value_to_add
   }
 }
 
 
 # spot check
-print(cohort_cumulative_normalized)
+print(cohort_cumulative_pct)
 
-cohort_cumulative_normalized$first_order_month <- format(cohort_cumulative_normalized$first_order_month, "%Y-%b")
+cohort_cumulative_pct$first_order_month <- format(cohort_cumulative_pct$first_order_month, "%Y-%b")
 

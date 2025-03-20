@@ -14,9 +14,9 @@ function(input, output, session) {
   selected_table <- reactive({
     switch(input$tableChoice,
            "cohort_count" = cohort_count,
-           "cohort_count_normalized" = cohort_count_normalized,
+           "cohort_count_pct" = cohort_count_pct,
            "cohort_cumulative" = cohort_cumulative,
-           "cohort_cumulative_normalized" = cohort_cumulative_normalized
+           "cohort_cumulative_pct" = cohort_cumulative_pct
     )
   })
   
@@ -84,9 +84,9 @@ function(input, output, session) {
   output$descriptionText <- renderText({
     switch(input$tableChoice,
            "cohort_count" = "This table shows the cohort count, representing the number of unique customers per cohort for each month.",
-           "cohort_count_normalized" = "This table shows the normalized cohort count, representing the proportion of customers retained over time per cohort.",
+           "cohort_count_pct" = "This table shows the normalized cohort count, representing the proportion of customers retained over time per cohort.",
            "cohort_cumulative" = "This table displays the cumulative count.",
-           "cohort_cumulative_normalized" = "This table displays the cumulative count normalized."
+           "cohort_cumulative_pct" = "This table displays the cumulative count normalized."
            
     )
   })
