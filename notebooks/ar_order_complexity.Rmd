@@ -31,8 +31,8 @@ connection <- dbConnect(
   host = "localhost",
   port = 5432,
   user = "postgres",
-  password = "postgres"
-  # password = rstudioapi::askForPassword("Database Password")
+  password = Sys.getenv("DB_PASSWORD") # for nvim
+  # password = rstudioapi::askForPassword("Database Password") # for Rstudio
 )
 ```
 
