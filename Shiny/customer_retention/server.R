@@ -84,10 +84,10 @@ function(input, output, session) {
   # Dynamic description text
   output$descriptionText <- renderText({
     switch(input$tableChoice,
-           "cohort_count" = "This table shows the cohort count, representing the number of unique customers per cohort for each month.",
-           "cohort_count_pct" = "This table shows the normalized cohort count, representing the proportion of customers retained over time per cohort.",
-           "cohort_cumulative" = "This table displays the cumulative count.",
-           "cohort_cumulative_pct" = "This table displays the cumulative count normalized."
+           "cohort_count" = "This table shows the number of customers from the original cohort in a given month. Each month shows the number of customers out of the original cohort",
+           "cohort_count_pct" = "This table shows the number of customers from the original cohort in a given month, represented as a percentage of the original cohort total.",
+           "cohort_cumulative" = "This table shows the number of customers that are retained over time. Each month shows the number of customers that ordered in that month or in any subsequent month",
+           "cohort_cumulative_pct" = "This table shows the rate of customer retention. A column shows the percentage of customers from the original cohort that ordered in the current or any subsequent month."
     )
   })
   
@@ -112,11 +112,46 @@ function(input, output, session) {
       theme_minimal() +                                  
       scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +  
       theme(
-        axis.text.x = element_text(angle = 45, hjust = 1),  
+        axis.text.x = element_text(angle = 90, hjust = 1),  
         plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  
         plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"),  
-        plot.caption = element_text(hjust = 1, size = 10, face = "italic")   
+        plot.caption = element_text(hjust = 1, size = 10, face = "italic")
+        
       )
+  })
+  
+  
+  # Render plot
+  output$customerPlot_2 <- renderPlot({
+  
+    simple_avg_2 <- mean(new_groupby_filtered$customer_count, na.rm = TRUE)
+    
+    ggplot(new_groupby_filtered, aes(x = as.Date(paste0(first_purchase_month, "-01")))) +
+      geom_line(aes(y = customer_count), color = "#0073C2FF", size = 1.2, na.rm = TRUE) +      
+      geom_point(aes(y = customer_count), color = "#D55E00", size = 3, na.rm = TRUE) +                  
+      
+      # Simple avg (dotted line)
+      geom_hline(aes(yintercept = simple_avg_2), 
+                 color = "orange", 
+                 linetype = "dotted", 
+                 size = 1) + 
+      
+      labs(
+        title = "New Customers by Month",
+        subtitle = "Tracking customer growth over time",
+        x = " ",
+        y = "New Customers",
+        caption = "Data Source: Sales Orders"
+      ) +
+      theme_minimal() +
+      scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") + 
+      theme(
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"),
+        plot.caption = element_text(hjust = 1, size = 10, face = "italic")
+      )
+  
   })
 }
 

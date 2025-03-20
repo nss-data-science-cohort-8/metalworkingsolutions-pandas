@@ -173,3 +173,35 @@ unique_customers <- customers_month |>
 
 # spot check
 print(unique_customers)
+
+# NEW CUSTOMERS
+
+new_customers_df <- customers_month |> 
+  group_by(customer_id) |> 
+  mutate(first_purchase = min(order_date)) |> 
+  ungroup()  
+
+# first p month
+new_customers_df <- new_customers_df |> 
+  mutate(first_purchase_month = format(first_purchase, "%Y-%m"))
+
+# first p month group by
+new_groupby <- new_customers_df |> 
+  group_by(first_purchase_month) |> 
+  summarise(customer_count = n_distinct(customer_id)) |> 
+  arrange(first_purchase_month)
+
+new_groupby_filtered <- new_groupby %>%
+  filter(first_purchase_month != "2023-01")
+
+# 6m rolling
+new_groupby_filtered <- new_groupby_filtered |> 
+  mutate(rolling_avg = rollapply(customer_count, width = 6, FUN = mean, align = "right", fill = NA))
+
+# simple avg
+new_groupby_filtered <- new_groupby_filtered |> 
+  mutate(simple_avg = mean(customer_count))
+
+#spot check
+
+print(new_groupby_filtered)
