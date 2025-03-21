@@ -594,41 +594,48 @@ fig
 ```
 ```{r}
 
-
-
 library(dplyr) 
 library(readxl)
 library(ggplot2)
-library(plotly)
 library(tidyr)
-
+library(scales)  
 
 file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/company_per_month.xlsx"
 
-# Read the Excel file
+
 df <- read_excel(file_path)
 
-# Convert year_month to Date format
+
 df$year_month <- as.Date(df$year_month)
 
-# Convert data to long format for stacking
-df_long <- df %>%
-  pivot_longer(cols = c(new_companies, existing), names_to = "company_type", values_to = "count")
+df <- df %>%
+  mutate(total_customers = new_companies + existing)
 
-# Create a stacked bar chart
-p <- ggplot(df_long, aes(x = year_month, y = count, fill = company_type)) +
-  geom_bar(stat = "identity", position = "stack") +
-  labs(title = "Number of New vs Existing Companies Per Month",
+
+df_long <- df %>%
+  pivot_longer(cols = c(new_companies, existing), names_to = "company_type", values_to = "count") %>%
+  mutate(percentage = (count / total_customers))  # Convert to proportion (0-1)
+
+
+p <- ggplot(df_long, aes(x = year_month, y = percentage, fill = company_type)) +
+  geom_bar(stat = "identity", position = "fill") +  # Normalize bars to 100%
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +  # Convert 0-1 scale to 0%-100%
+  labs(title = "Percentage of New vs Existing Companies Per Month",
        x = "Month",
-       y = "Number of Companies",
+       y = "Percentage of Companies",
        fill = "Company Type") +
   scale_fill_manual(values = c("new_companies" = "#C61126", "existing" = "#445162")) +  # Custom colors
   scale_x_date(date_labels = "%Y-%m", date_breaks = "2 months") +  
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# Show plot
+
 print(p)
+
+
+
+
+
 ```
 
 
@@ -718,6 +725,10 @@ print(p1)
 print(p2)
 
 ```
+
+
+
+
 ```{r}
 # Load necessary libraries
 library(dplyr)
@@ -740,32 +751,260 @@ first_time_customers <- df %>%
   summarise(first_purchase_date = min(omp_order_date)) %>%
   ungroup()
 
-# Count unique first-time customers per order date
-customers_per_date <- first_time_customers %>%
-  group_by(first_purchase_date) %>%
+# Extract year-month and count distinct customers per month
+customers_per_month <- first_time_customers %>%
+  mutate(year_month = floor_date(first_purchase_date, "month")) %>%  # Convert to year-month
+  group_by(year_month) %>%
   summarise(num_customers = n()) %>%
-  arrange(first_purchase_date)
+  arrange(year_month)
 
-# Create a categorical variable for legend
-customers_per_date$Legend <- "First-Time Customers"
+# Calculate total number of first-time customers
+total_customers <- sum(customers_per_month$num_customers)
 
-# Create a bar chart with legend
-p <- ggplot(customers_per_date, aes(x = first_purchase_date, y = num_customers, fill = Legend)) +
+# Create categorical variable for legend
+customers_per_month$Legend <- "First-Time Customers"
+
+# Create a bar chart showing distinct customers per month with labels
+p <- ggplot(customers_per_month, aes(x = year_month, y = num_customers, fill = Legend)) +
   geom_bar(stat = "identity") +
+  geom_text(aes(label = num_customers), vjust = -0.5, size = 4, fontface = "bold") +  # Add labels on bars
   scale_fill_manual(values = c("First-Time Customers" = "steelblue")) +  # Legend Color
-  labs(title = "Number of First-Time Customers Per Order Date",
-       x = "Order Date",
+  labs(title = paste("Number of First-Time Customers Per Month (Total:", total_customers, ")"),
+       x = "Month",
        y = "Number of First-Time Customers",
        fill = "Customer Type") +  # Legend Title
   theme_minimal() +
-  scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "1 month") +  
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "2 months") +  # Show every 2 months
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+# Show plot
+print(p)
+
+# Print the summarized table
+print(customers_per_month)
+
+
+
+
+```
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/customer_hour_earned_2023.xlsx"
+
+df <- read_excel(file_path)
+
+df <- df %>%
+  mutate(date = as.Date(paste(year, month, "01", sep = "-"), format = "%Y-%m-%d"))
+
+
+selected_companies <- c("M030-MORGO", "Y002-YNGTC", "F022-F&D", "S038-STLKI",
+                        "S039-SMI", "S002-SREIL", "M026-MIURA", "S046-SPOC",
+                        "B035-BAC", "S025-SAKAI")
+
+df_filtered <- df %>%
+  filter(customer %in% selected_companies)
+
+
+scale_factor <- max(df_filtered$total_earned, na.rm = TRUE) / max(df_filtered$time_in_hr, na.rm = TRUE)
+
+# Create a dual-axis line chart
+p <- ggplot(df_filtered, aes(x = date)) +
+  geom_line(aes(y = total_earned, color = "Total Earned ($)"), size = 1) +  # Right Y-axis
+  geom_line(aes(y = time_in_hr * scale_factor, color = "Time in Hours"), size = 1, linetype = "dashed") +  # Left Y-axis scaled
+  scale_y_continuous(
+    name = "Total Earned ($)",
+    sec.axis = sec_axis(~ . / scale_factor, name = "Time in Hours")  # Fixing secondary axis
+  ) +
+  labs(title = "Total Earned vs. Time Spent (Selected Companies)",
+       x = "Month/Year",
+       color = "Metric") +
+  scale_color_manual(values = c("Total Earned ($)" = "blue", "Time in Hours" = "red")) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "2 months") +  
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Show plot
+print(p)
+
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(scales)  
+
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/customer_hour_earned.xlsx"
+df <- read_excel(file_path)
+
+df <- df %>%
+  mutate(date = as.Date(paste(year, month, "01", sep = "-"), format = "%Y-%m-%d"))
+
+selected_companies <- c("Y002-YNGTC")  
+
+df_filtered <- df %>%
+  filter(customer %in% selected_companies)
+
+scale_factor <- max(df_filtered$total_earned, na.rm = TRUE) / max(df_filtered$time_in_hr, na.rm = TRUE)
+
+df_filtered <- df_filtered %>%
+  mutate(time_in_hr_scaled = time_in_hr * scale_factor)  
+
+# Create a dual-axis line chart with full number formatting
+p <- ggplot(df_filtered, aes(x = date)) +
+  geom_line(aes(y = total_earned, color = "Total Earning ($)"), size = 1) +  # Left Y-axis
+  geom_line(aes(y = time_in_hr_scaled, color = "Time in Hours"), size = 1, linetype = "dashed") +  # Right Y-axis
+  scale_y_continuous(
+    name = "Total Earning ($)",  # Left Y-axis label
+    labels = scales::comma,  # Format numbers with full comma-separated values
+    sec.axis = sec_axis(~ . / scale_factor, name = "Time Spent (Hours)")
+  ) +
+  labs(title = paste("Total Earning and Operation time: Monthly trends for", selected_companies),
+       x = "Month/Year",
+       color = "Metric") +
+  scale_color_manual(values = c("Total Earning ($)" = "blue", "Time in Hours" = "red")) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "2 months") +  
+  theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # Show plot
 print(p)
 
 
-
-
 ```
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(scales)  
+
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/customer_hour_earned.xlsx"
+df <- read_excel(file_path)
+
+df <- df %>%
+  mutate(date = as.Date(paste(year, month, "01", sep = "-"), format = "%Y-%m-%d"))
+
+selected_companies <- c("M030-MORGO")  
+
+df_filtered <- df %>%
+  filter(customer %in% selected_companies)
+
+scale_factor <- max(df_filtered$total_earned, na.rm = TRUE) / max(df_filtered$time_in_hr, na.rm = TRUE)
+
+df_filtered <- df_filtered %>%
+  mutate(time_in_hr_scaled = time_in_hr * scale_factor)  
+
+# Create a dual-axis line chart with full number formatting
+p <- ggplot(df_filtered, aes(x = date)) +
+  geom_line(aes(y = total_earned, color = "Total Earning ($)"), size = 1) +  # Left Y-axis
+  geom_line(aes(y = time_in_hr_scaled, color = "Time in Hours"), size = 1, linetype = "dashed") +  # Right Y-axis
+  scale_y_continuous(
+    name = "Total Earning ($)",  # Left Y-axis label
+    labels = scales::comma,  # Format numbers with full comma-separated values
+    sec.axis = sec_axis(~ . / scale_factor, name = "Time Spent (Hours)")
+  ) +
+  labs(title = paste("Total Earning and Operation time: Monthly trends for", selected_companies),
+       x = "Month/Year",
+       color = "Metric") +
+  scale_color_manual(values = c("Total Earning ($)" = "blue", "Time in Hours" = "red")) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "2 months") +  
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Show plot
+print(p)
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(scales)  
+
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/customer_hour_earned.xlsx"
+df <- read_excel(file_path)
+
+df <- df %>%
+  mutate(date = as.Date(paste(year, month, "01", sep = "-"), format = "%Y-%m-%d"))
+
+selected_companies <- c("F022-F&D")  
+
+df_filtered <- df %>%
+  filter(customer %in% selected_companies)
+
+scale_factor <- max(df_filtered$total_earned, na.rm = TRUE) / max(df_filtered$time_in_hr, na.rm = TRUE)
+
+df_filtered <- df_filtered %>%
+  mutate(time_in_hr_scaled = time_in_hr * scale_factor)  
+
+# Create a dual-axis line chart with full number formatting
+p <- ggplot(df_filtered, aes(x = date)) +
+  geom_line(aes(y = total_earned, color = "Total Earning ($)"), size = 1) +  # Left Y-axis
+  geom_line(aes(y = time_in_hr_scaled, color = "Time in Hours"), size = 1, linetype = "dashed") +  # Right Y-axis
+  scale_y_continuous(
+    name = "Total Earning ($)",  # Left Y-axis label
+    labels = scales::comma,  # Format numbers with full comma-separated values
+    sec.axis = sec_axis(~ . / scale_factor, name = "Time Spent (Hours)")
+  ) +
+  labs(title = paste("Total Earning and Operation time: Monthly trends for", selected_companies),
+       x = "Month/Year",
+       color = "Metric") +
+  scale_color_manual(values = c("Total Earning ($)" = "blue", "Time in Hours" = "red")) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "2 months") +  
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Show plot
+print(p)
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+library(scales)  
+
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/customer_hour_earned.xlsx"
+df <- read_excel(file_path)
+
+df <- df %>%
+  mutate(date = as.Date(paste(year, month, "01", sep = "-"), format = "%Y-%m-%d"))
+
+selected_companies <- c("S038-STLKI")  
+
+df_filtered <- df %>%
+  filter(customer %in% selected_companies)
+
+scale_factor <- max(df_filtered$total_earned, na.rm = TRUE) / max(df_filtered$time_in_hr, na.rm = TRUE)
+
+df_filtered <- df_filtered %>%
+  mutate(time_in_hr_scaled = time_in_hr * scale_factor)  
+
+# Create a dual-axis line chart with full number formatting
+p <- ggplot(df_filtered, aes(x = date)) +
+  geom_line(aes(y = total_earned, color = "Total Earning ($)"), size = 1) +  # Left Y-axis
+  geom_line(aes(y = time_in_hr_scaled, color = "Time in Hours"), size = 1, linetype = "dashed") +  # Right Y-axis
+  scale_y_continuous(
+    name = "Total Earning ($)",  # Left Y-axis label
+    labels = scales::comma,  # Format numbers with full comma-separated values
+    sec.axis = sec_axis(~ . / scale_factor, name = "Time Spent (Hours)")
+  ) +
+  labs(title = paste("Total Earning and Operation time: Monthly trends for", selected_companies),
+       x = "Month/Year",
+       color = "Metric") +
+  scale_color_manual(values = c("Total Earning ($)" = "blue", "Time in Hours" = "red")) +
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "2 months") +  
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Show plot
+print(p)
+```
+
 
