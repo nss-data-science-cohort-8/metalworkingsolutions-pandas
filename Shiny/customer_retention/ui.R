@@ -7,8 +7,6 @@
 #    https://shiny.posit.co/
 #
 
-# UI Code
-
 ui <- fluidPage(
   titlePanel("Customer Base Changes Over Time"),
   
@@ -18,37 +16,41 @@ ui <- fluidPage(
              class = "sidebar-content",
              style = "height: 100%; display: flex; flex-direction: column;",
              
-             # dropdown 
+             # Dropdown 
              selectInput("tableChoice", 
                          "Choose a table:",
                          choices = c("cohort_count", "cohort_count_pct", "cohort_cumulative", "cohort_cumulative_pct"),
                          selected = "cohort_count",
                          width = '200px'),
              
-             # add space btw dropdown and description
-             tags$br(),
-             
-             # dynamic text 
+             # Dynamic description
              tags$div(
                style = "border: 1px solid #ccc; padding: 10px; background-color: #f8f8f8;",
                textOutput("descriptionText") 
              ),
              
-             # plot in sidebar
-             tags$br(),
-             h4("Customer Growth Plot"),  
-             div(style = "flex-grow: 1;", plotOutput("customerPlot")),
+             # Plot
+             h4(""),  
+             div(
+               style = "flex-grow: 1; border: 2px solid #0073C2; padding: 10px;",  # Adding a border
+               plotOutput("customerPlot")
+             ),
              
-             # plot2 in sidebar
-             tags$br(),
-             h4("Customer Growth Plot 2"),  
-             div(style = "flex-grow: 1;", plotOutput("customerPlot_2"))
+             # Plot2 
+             h4(""),  
+             div(
+               style = "flex-grow: 1; border: 2px solid #D55E00; padding: 10px;",  # Adding a border
+               plotOutput("customerPlot_2")
+             )
            )
     ),
     
     column(9, # Main panel column
-           # Title for the table section
-           h3("Customer Retention Table"),
+           # dynamic title
+           tags$div(
+             style = "font-size: 24px; font-weight: bold; margin-bottom: 10px;",
+             textOutput("dynamic_title")  
+           ),
            
            # Render table
            div(
@@ -62,7 +64,7 @@ ui <- fluidPage(
   tags$style(HTML("
     .row {
       display: flex;
-      min-height: calc(100vh - 120px); /* Full viewport height minus header space */
+      min-height: calc(100vh - 120px); /* Fuadjust space */
     }
     
     .col-sm-3, .col-sm-9 {
@@ -87,6 +89,12 @@ ui <- fluidPage(
     }
   "))
 )
+
+
+
+
+
+
 
 
 

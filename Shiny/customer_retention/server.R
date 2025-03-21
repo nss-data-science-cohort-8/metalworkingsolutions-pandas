@@ -7,11 +7,9 @@
 #    https://shiny.posit.co/
 #
 
-
-
 function(input, output, session) {
   
-  # reactive 
+  # Reactive expression to select the table based on input
   selected_table <- reactive({
     switch(input$tableChoice,
            "cohort_count" = cohort_count,
@@ -36,13 +34,17 @@ function(input, output, session) {
       return(x)
     })
     
-    # Render datatable
+    # Render datatable with custom column widths
     datatable(
       table_data,
       options = list(
         pageLength = 23, 
-        autoWidth = TRUE,
+        autoWidth = FALSE,
         searching = FALSE,
+        columnDefs = list(
+          list(targets = 0, width = '75px'),  # Adjust first column width
+          list(targets = '_all', width = '100px')  # Default width for all columns
+        ),
         rowCallback = JS("
           function(row, data) {
             var startCol = 3;  
@@ -91,10 +93,21 @@ function(input, output, session) {
     )
   })
   
-  # Render plot
+  # Title mapping
+  title_map <- list(
+    "cohort_count" = "Customer Retention - Count",
+    "cohort_count_pct" = "Customer Retention - Pct",
+    "cohort_cumulative" = "Customer Retention - Cumulative",
+    "cohort_cumulative_pct" = "Customer Retention - Cumulative Pct"
+  )
+  
+  #  Dynamic title
+  output$dynamic_title <- renderText({
+    title_map[[input$tableChoice]]  # Ensure we're using input$tableChoice for dynamic title
+  })
+  
+  # Render plot 1
   output$customerPlot <- renderPlot({
-    
-    
     ggplot(unique_customers, aes(x = order_month, y = new_customers)) +
       geom_line(color = "#0073C2FF", size = 1.2) +  
       geom_point(color = "#D55E00", size = 3) +      
@@ -103,8 +116,8 @@ function(input, output, session) {
                  linetype = "dotted", 
                  size = 1) +  
       labs(
-        title = "Unique Customers by Month",              
-        subtitle = "Tracking customer growth over time",  
+        title = "Unique Customers by Month ",              
+        subtitle = "Average of 42 Unique Customers per Month",  
         x = " ",                                          
         y = "Unique Customers",                           
         caption = "Data Source: Sales Orders"             
@@ -116,14 +129,11 @@ function(input, output, session) {
         plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  
         plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"),  
         plot.caption = element_text(hjust = 1, size = 10, face = "italic")
-        
       )
   })
   
-  
-  # Render plot
+  # Render plot 2
   output$customerPlot_2 <- renderPlot({
-  
     simple_avg_2 <- mean(new_groupby_filtered$customer_count, na.rm = TRUE)
     
     ggplot(new_groupby_filtered, aes(x = as.Date(paste0(first_purchase_month, "-01")))) +
@@ -138,7 +148,7 @@ function(input, output, session) {
       
       labs(
         title = "New Customers by Month",
-        subtitle = "Tracking customer growth over time",
+        subtitle = "Average of 3.5 new customers per Month",
         x = " ",
         y = "New Customers",
         caption = "Data Source: Sales Orders"
@@ -151,28 +161,8 @@ function(input, output, session) {
         plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"),
         plot.caption = element_text(hjust = 1, size = 10, face = "italic")
       )
-  
   })
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
