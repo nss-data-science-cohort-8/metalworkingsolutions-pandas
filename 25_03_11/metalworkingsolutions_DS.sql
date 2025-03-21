@@ -248,3 +248,99 @@ FROM (
 ) subquery
 WHERE customer_type = 'Existing'
 ORDER BY omp_order_date;
+
+-- find how many new customer in 2023( excluded the first 01/01/2023)
+WITH first_transaction AS (
+    SELECT 
+        omp_customer_organization_id,
+        MIN(omp_order_date) AS first_purchase_date
+    FROM sales_orders
+    GROUP BY omp_customer_organization_id
+)
+
+SELECT 
+	EXTRACT(YEAR FROM o.omp_order_date) AS year,
+	EXTRACT(MONTH FROM o.omp_order_date) AS month,
+	COUNT(DISTINCT o.omp_customer_organization_id) AS total_customers,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date = o.omp_order_date THEN o.omp_customer_organization_id
+    END) AS new_customers,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date < o.omp_order_date THEN o.omp_customer_organization_id
+    END) AS existing_customers,
+	(COUNT(DISTINCT o.omp_customer_organization_id) - COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date < o.omp_order_date)) AS new_become_repeat 
+	
+FROM sales_orders AS o
+JOIN first_transaction AS f 
+    ON o.omp_customer_organization_id = f.omp_customer_organization_id
+WHERE EXTRACT(YEAR FROM o.omp_order_date) = 2023 AND EXTRACT(MONTH FROM o.omp_order_date) != 1
+GROUP BY year, month;
+
+---- find how many new customer in 2024
+WITH first_transaction AS (
+    SELECT 
+        omp_customer_organization_id,
+        MIN(omp_order_date) AS first_purchase_date
+    FROM sales_orders
+    GROUP BY omp_customer_organization_id
+)
+
+SELECT 
+	EXTRACT(YEAR FROM o.omp_order_date) AS year,
+	COUNT(DISTINCT o.omp_customer_organization_id) AS total_customers,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date = o.omp_order_date THEN o.omp_customer_organization_id
+    END) AS new_customers,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date < o.omp_order_date THEN o.omp_customer_organization_id
+    END) AS existing_customers
+	
+FROM sales_orders AS o
+JOIN first_transaction AS f 
+    ON o.omp_customer_organization_id = f.omp_customer_organization_id
+WHERE EXTRACT(YEAR FROM o.omp_order_date) = 2024
+GROUP BY year;
+---no group by month and year
+WITH first_transaction AS (
+    SELECT 
+        omp_customer_organization_id,
+        MIN(omp_order_date) AS first_purchase_date
+    FROM sales_orders
+    GROUP BY omp_customer_organization_id
+)
+
+SELECT 
+	COUNT(DISTINCT o.omp_customer_organization_id) AS total_customers,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date = o.omp_order_date THEN o.omp_customer_organization_id
+    END) AS new_customers,
+    COUNT(DISTINCT CASE 
+        WHEN f.first_purchase_date < o.omp_order_date THEN o.omp_customer_organization_id
+    END) AS existing_customers
+	
+FROM sales_orders AS o
+JOIN first_transaction AS f 
+    ON o.omp_customer_organization_id = f.omp_customer_organization_id;
+--company name of one time buyers
+SELECT 
+    s.omp_customer_organization_id,
+	j.jmp_part_short_description,
+    COUNT(DISTINCT omp_sales_order_id) AS total_order
+	
+FROM sales_orders AS s 
+INNER JOIN jobs AS j on s.omp_customer_organization_id = j.jmp_customer_organization_id
+GROUP BY omp_customer_organization_id, j.jmp_part_short_description
+HAVING COUNT(DISTINCT omp_sales_order_id) = 1
+ORDER BY omp_customer_organization_id, j.jmp_part_short_description;
+
+--first time buy date
+WITH first_transaction AS (
+    SELECT 
+        omp_customer_organization_id,
+        MIN(omp_order_date) AS first_purchase_date
+    FROM sales_orders
+    GROUP BY omp_customer_organization_id
+)
+SELECT
+   DISTINCT s.omp_customer_organization_id

@@ -127,7 +127,7 @@ WITH first_transaction AS (
     GROUP BY omp_customer_organization_id
 )
 
-SELECT 
+SELECT DISTINCT ON (o.omp_customer_organization_id)
     EXTRACT(YEAR FROM o.omp_order_date) AS year,
     EXTRACT(MONTH FROM o.omp_order_date) AS month,
     COUNT(DISTINCT CASE 
@@ -142,8 +142,8 @@ SELECT
 FROM sales_orders AS o
 JOIN first_transaction AS f 
     ON o.omp_customer_organization_id = f.omp_customer_organization_id
-GROUP BY year, month
-ORDER BY year, month;
+GROUP BY o.omp_customer_organization_id, year, month
+ORDER BY o.omp_customer_organization_id,year, month;
 
 "
 
@@ -183,8 +183,8 @@ ggplot(customer_data_percent_long, aes(x = date, y = percentage, fill = customer
   scale_y_continuous(labels = scales::percent_format(scale = 1), breaks = seq(0, 100, 10)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 11),
         legend.text = element_text(size = 14),
-        axis.title = element_text(size = 16))
-   
+        axis.title = element_text(size = 15))
+
 ```
 ```{r}
 # Load required libraries
@@ -264,7 +264,7 @@ p_customer <- ggplot(customer_cohort_summary, aes(
   scale_fill_distiller(palette = "RdYlBu", direction = -1) +
   labs(title = "Customer-Level Cohort Analysis",
        x = "Months Since First Order",
-       y = "Customer Index",
+       y = "Customer",
        fill = "Number of Orders") +
   theme_minimal() +
   theme(axis.text.y = element_text(size=7), 
@@ -289,6 +289,7 @@ library(DBI)
 library(RPostgres)
 library(ggplot2)
 library(dplyr)
+library(treemapify)
 
 # Connect to PostgreSQL Database
 con <- dbConnect(RPostgres::Postgres(),
@@ -323,14 +324,26 @@ customer_data_summary <- customer_data %>%
   summarise(total_nooforder = sum(nooforder, na.rm = TRUE), .groups = "drop")
 
 # Plot aggregated data
-ggplot(customer_data_summary, aes(x = reorder(part_type, total_nooforder), y = total_nooforder, fill = part_type)) +
+ggplot(customer_data_summary, aes(x = reorder(part_type, total_nooforder), y = total_nooforder, fill = total_nooforder)) +
   geom_bar(stat = "identity") +
-  labs(title = "Orders Per Part Type",
+  labs(title = "Part Types Ordered by One-Time Customers",
        x = "Part Type",
        y = "Number of Orders",
-       fill = "Part Type") +
+       fill = "Number of Orders") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),  # Reduce x-axis tick font size
+        legend.text = element_text(size = 8),  # Reduce legend font size
+        legend.title = element_text(size = 10)) +  # Adjust legend title size if necessary
+  scale_fill_gradient(low = "#445162", high = "black")  
+
+
+
+ggplot(customer_data_summary, aes(area = total_nooforder, fill = part_type, label = part_type)) +
+  geom_treemap() +
+  geom_treemap_text(fontface = "bold", colour = "white", place = "centre", grow = TRUE) +
+  scale_fill_viridis_d() +
+  labs(title = "Parts Ordered by One-Time Customers") +
+  theme_minimal()
 
 ```
 
@@ -530,25 +543,23 @@ df$order_year <- as.factor(df$order_year)
 
 # Summarize total orders per part per year
 parts_summary <- df %>%
-  group_by(order_year, part_type) %>%
+  group_by(part_type) %>%
   summarise(total_ordered = sum(no_ordered_part), .groups = "drop")
 
 # Get top 10 parts for each year separately
-top_parts_per_year <- parts_summary %>%
-  group_by(order_year) %>%
+top_parts <- parts_summary %>%
   slice_max(order_by = total_ordered, n = 10) %>%
   ungroup()
 
 
-top_parts_per_year <- top_parts_per_year %>%
+top_parts <- top_parts %>%
   mutate(part_type = fct_reorder(part_type, total_ordered))
 
 # Plot bar chart with **SEPARATE X-AXIS SCALES**
-ggplot(top_parts_per_year, aes(x = part_type, y = total_ordered, fill = total_ordered)) +
+ggplot(top_parts, aes(x = part_type, y = total_ordered, fill = total_ordered)) +
   geom_col(show.legend = FALSE) +
   coord_flip() +
-  facet_wrap(~order_year, scales = "free_x") +  # **Set separate x-axis scales**
-  labs(title = "Top 10 Ordered Parts by Existing Customers (2023 vs 2024)",
+  labs(title = "Top 10 Ordered Parts by Existing Customers",
        x = "Part Type",
        y = "Number Ordered") +
   theme_minimal() +
@@ -560,100 +571,201 @@ ggplot(top_parts_per_year, aes(x = part_type, y = total_ordered, fill = total_or
 ```
 
 
+
 ```{r}
-library(DBI)
-library(RPostgres)
-library(dplyr)
-library(ggplot2)
-library(forcats)  # Use forcats for correct ordering
+library(plotly)
 
-# Connect to PostgreSQL database
-con <- dbConnect(Postgres(),
-                 dbname = 'metalworking solution',
-                 host = 'localhost',
-                 port = 5432,
-                 user = 'postgres',
-                 password = 'Postgre')
-
-# Execute SQL query and fetch results into a dataframe
-df <- dbGetQuery(con, "
-WITH first_transaction AS (
-    SELECT 
-        omp_customer_organization_id,
-        MIN(omp_order_date) AS first_purchase_date
-    FROM sales_orders
-    GROUP BY omp_customer_organization_id
+# Data for Pie Chart
+df_total <- data.frame(
+  customer_type = c("One-Time Buyer", "Repeated Customer"),
+  count = c(25, 98)
 )
 
-SELECT 
-    o.omp_customer_organization_id,
-    o.omp_order_date,
-    DATE_TRUNC('month', o.omp_order_date) AS order_month,
-    EXTRACT(YEAR FROM o.omp_order_date) AS order_year, 
-    CASE 
-        WHEN DATE_TRUNC('month', f.first_purchase_date) = DATE_TRUNC('month', o.omp_order_date)
-        THEN 'New'
-        ELSE 'Existing'
-    END AS customer_type,
-    j.jmp_part_short_description AS part_type,
-    COUNT(j.jmp_part_short_description) AS no_ordered_part
-FROM sales_orders AS o
-INNER JOIN first_transaction AS f
-    ON o.omp_customer_organization_id = f.omp_customer_organization_id
-INNER JOIN jobs AS j
-    ON j.jmp_customer_organization_id = o.omp_customer_organization_id
-WHERE EXTRACT(YEAR FROM o.omp_order_date) IN (2023, 2024) 
-AND CASE 
-        WHEN DATE_TRUNC('month', f.first_purchase_date) = DATE_TRUNC('month', o.omp_order_date)
-        THEN 'New'
-        ELSE 'Existing'
-    END = 'New'
-GROUP BY 
-    o.omp_customer_organization_id,
-    o.omp_order_date,
-    order_month,
-    order_year,
-    customer_type,
-    j.jmp_part_short_description
-ORDER BY order_year, no_ordered_part DESC;")
+# Create pie chart using plotly with custom colors
+fig <- plot_ly(df_total, labels = ~customer_type, values = ~count, type = 'pie',
+               textinfo = 'label+percent', insidetextorientation = 'radial',
+               marker = list(colors = c("#C61126", "#445162"))) %>%
+  layout(title = "Proportion of One-Time Buyers vs Repeated Customers")
 
-# Disconnect from the database
-dbDisconnect(con)
+# Display the plot
+fig
 
-df$order_year <- as.factor(df$order_year)
-
-# Summarize total orders per part per year
-parts_summary <- df %>%
-  group_by(order_year, part_type) %>%
-  summarise(total_ordered = sum(no_ordered_part), .groups = "drop")
-
-# Get top 10 parts for each year separately
-top_parts_per_year <- parts_summary %>%
-  group_by(order_year) %>%
-  slice_max(order_by = total_ordered, n = 10) %>%
-  ungroup()
-
-
-top_parts_per_year <- top_parts_per_year %>%
-  mutate(part_type = fct_reorder(part_type, total_ordered))
-
-# Plot bar chart with **SEPARATE X-AXIS SCALES**
-ggplot(top_parts_per_year, aes(x = part_type, y = total_ordered, fill = total_ordered)) +
-  geom_col(show.legend = FALSE) +
-  coord_flip() +
-  facet_wrap(~order_year, scales = "free_x") +  # **Set separate x-axis scales**
-  labs(title = "Top 10 Ordered Parts by New Customers (2023 vs 2024)",
-       x = "Part Type",
-       y = "Number Ordered") +
-  theme_minimal() +
-  theme(axis.text.y = element_text(size = 9),
-        plot.title = element_text(size = 14, face = "bold"),
-        axis.text.x = element_text(size = 10),
-        strip.text = element_text(size = 12, face = "bold")) +
-  scale_fill_gradient(low = "#F9E79F", high = "#C61126")
 
 ```
 ```{r}
- # Load required libraries
+
+
+
+library(dplyr) 
+library(readxl)
+library(ggplot2)
+library(plotly)
+library(tidyr)
+
+
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/company_per_month.xlsx"
+
+# Read the Excel file
+df <- read_excel(file_path)
+
+# Convert year_month to Date format
+df$year_month <- as.Date(df$year_month)
+
+# Convert data to long format for stacking
+df_long <- df %>%
+  pivot_longer(cols = c(new_companies, existing), names_to = "company_type", values_to = "count")
+
+# Create a stacked bar chart
+p <- ggplot(df_long, aes(x = year_month, y = count, fill = company_type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "Number of New vs Existing Companies Per Month",
+       x = "Month",
+       y = "Number of Companies",
+       fill = "Company Type") +
+  scale_fill_manual(values = c("new_companies" = "#C61126", "existing" = "#445162")) +  # Custom colors
+  scale_x_date(date_labels = "%Y-%m", date_breaks = "2 months") +  
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Show plot
+print(p)
+```
+
+
+```{r}
+# One-time customer, ordered products
+library(dplyr)
+library(ggplot2)
+library(readxl)
+
+# Define the file path (update if needed)
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/one_time_buyer_name_what_they_order.xlsx"
+
+# Read the Excel file
+df <- read_excel(file_path)
+
+# Count occurrences of each product
+top_products <- df %>%
+  count(jmp_part_short_description, sort = TRUE) %>%  # Count and sort by frequency
+  top_n(25, n)  # Select top 10 most ordered products
+
+# Create a bar chart
+p <- ggplot(top_products, aes(x = reorder(jmp_part_short_description, n), y = n)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Top 10 Most Ordered Products by One-time customers",
+       x = "Product",
+       y = "Number of Orders") +
+  theme_minimal() +
+  coord_flip()  # Flip for better readability
+
+# Show plot
+print(p)
 
 ```
+
+```{r}
+##New customer most ordered itemes in 2023 and 2024
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(lubridate)  
+
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/first_time_buyer_ordered_items.xlsx"
+
+
+df <- read_excel(file_path)
+
+
+df$omp_order_date <- as.Date(df$omp_order_date, format = "%m/%d/%Y")
+
+
+df$year <- year(df$omp_order_date)
+
+
+get_top_products <- function(data, year_filter) {
+  data %>%
+    filter(year == year_filter) %>%
+    count(jmp_part_short_description, sort = TRUE) %>%
+    top_n(10, n)
+}
+
+
+top_products_2023 <- get_top_products(df, 2023)
+
+
+top_products_2024 <- get_top_products(df, 2024)
+
+# Create a bar chart for 2023
+p1 <- ggplot(top_products_2023, aes(x = reorder(jmp_part_short_description, n), y = n)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Top 10 Most Ordered Products by First-Time Customers (2023)",
+       x = "Product",
+       y = "Number of Orders") +
+  theme_minimal() +
+  coord_flip()
+
+# Create a bar chart for 2024
+p2 <- ggplot(top_products_2024, aes(x = reorder(jmp_part_short_description, n), y = n)) +
+  geom_bar(stat = "identity", fill = "darkred") +
+  labs(title = "Top 10 Most Ordered Products by First-Time Customers (2024)",
+       x = "Product",
+       y = "Number of Orders") +
+  theme_minimal() +
+  coord_flip()
+
+# Show both plots
+print(p1)
+print(p2)
+
+```
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(lubridate)
+
+# Define the file path
+file_path <- "C:/Users/vetdd/Documents/NSS_project/metalworkingsolutions-pandas/25_03_11/first_time_buyer_ordered_items.xlsx"
+
+# Read the Excel file
+df <- read_excel(file_path)
+
+# Convert order date to Date format
+df$omp_order_date <- as.Date(df$omp_order_date, format = "%m/%d/%Y")
+
+# Identify the first order date for each customer
+first_time_customers <- df %>%
+  group_by(omp_customer_organization_id) %>%
+  summarise(first_purchase_date = min(omp_order_date)) %>%
+  ungroup()
+
+# Count unique first-time customers per order date
+customers_per_date <- first_time_customers %>%
+  group_by(first_purchase_date) %>%
+  summarise(num_customers = n()) %>%
+  arrange(first_purchase_date)
+
+# Create a categorical variable for legend
+customers_per_date$Legend <- "First-Time Customers"
+
+# Create a bar chart with legend
+p <- ggplot(customers_per_date, aes(x = first_purchase_date, y = num_customers, fill = Legend)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("First-Time Customers" = "steelblue")) +  # Legend Color
+  labs(title = "Number of First-Time Customers Per Order Date",
+       x = "Order Date",
+       y = "Number of First-Time Customers",
+       fill = "Customer Type") +  # Legend Title
+  theme_minimal() +
+  scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "1 month") +  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Show plot
+print(p)
+
+
+
+
+```
+
