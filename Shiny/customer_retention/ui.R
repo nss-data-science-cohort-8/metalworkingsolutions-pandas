@@ -10,6 +10,8 @@
 ui <- fluidPage(
   titlePanel("Customer Base Changes Over Time"),
   
+  br(),
+  
   fluidRow(
     column(3, # Sidebar column
            div(
@@ -23,11 +25,11 @@ ui <- fluidPage(
                          selected = "cohort_count",
                          width = '200px'),
              
-             # Dynamic description
-             tags$div(
-               style = "border: 1px solid #ccc; padding: 10px; background-color: #f8f8f8;",
-               textOutput("descriptionText") 
-             ),
+             # # Dynamic description
+             # tags$div(
+             #   style = "border: 1px solid #ccc; padding: 10px; background-color: #f8f8f8;",
+             #   textOutput("descriptionText") 
+             # ),
              
              # Plot
              h4(""),  
@@ -35,6 +37,8 @@ ui <- fluidPage(
                style = "flex-grow: 1; border: 2px solid #0073C2; padding: 10px;",  # Adding a border
                plotOutput("customerPlot")
              ),
+             
+             br(),
              
              # Plot2 
              h4(""),  

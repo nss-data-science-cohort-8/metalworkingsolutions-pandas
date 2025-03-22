@@ -9,7 +9,7 @@
 
 function(input, output, session) {
   
-  # Reactive expression to select the table based on input
+  # reactive table selection
   selected_table <- reactive({
     switch(input$tableChoice,
            "cohort_count" = cohort_count,
@@ -19,11 +19,11 @@ function(input, output, session) {
     )
   })
   
-  # Render the cohort table
+  # render main table
   output$cohortTable <- renderDT({
     table_data <- selected_table()
     
-    # Replace NAs in the table
+    # replace NAs in the table
     table_data[] <- lapply(table_data, function(x) {
       if (is.factor(x)) {
         levels(x) <- c(levels(x), "")  # Add empty level for factors
@@ -34,16 +34,16 @@ function(input, output, session) {
       return(x)
     })
     
-    # Render datatable with custom column widths
+    # render datatable with custom column widths
     datatable(
       table_data,
       options = list(
-        pageLength = 23, 
+        pageLength = 25, 
         autoWidth = FALSE,
         searching = FALSE,
         columnDefs = list(
-          list(targets = 0, width = '75px'),  # Adjust first column width
-          list(targets = '_all', width = '100px')  # Default width for all columns
+          list(targets = 0, width = '75px'),  #column width
+          list(targets = '_all', width = '100px')  #column width
         ),
         rowCallback = JS("
           function(row, data) {
@@ -83,30 +83,30 @@ function(input, output, session) {
     )
   })
   
-  # Dynamic description text
-  output$descriptionText <- renderText({
-    switch(input$tableChoice,
-           "cohort_count" = "This table shows the number of customers from the original cohort in a given month. Each month shows the number of customers out of the original cohort",
-           "cohort_count_pct" = "This table shows the number of customers from the original cohort in a given month, represented as a percentage of the original cohort total.",
-           "cohort_cumulative" = "This table shows the number of customers that are retained over time. Each month shows the number of customers that ordered in that month or in any subsequent month",
-           "cohort_cumulative_pct" = "This table shows the rate of customer retention. A column shows the percentage of customers from the original cohort that ordered in the current or any subsequent month."
-    )
-  })
+  # # Dynamic description text
+  # output$descriptionText <- renderText({
+  #   switch(input$tableChoice,
+  #          "cohort_count" = "This table shows the number of customers from the original cohort in a given month. Each month shows the number of customers out of the original cohort",
+  #          "cohort_count_pct" = "This table shows the number of customers from the original cohort in a given month, represented as a percentage of the original cohort total.",
+  #          "cohort_cumulative" = "This table shows the number of customers that are retained over time. Each month shows the number of customers that ordered in that month or in any subsequent month",
+  #          "cohort_cumulative_pct" = "This table shows the rate of customer retention. A column shows the percentage of customers from the original cohort that ordered in the current or any subsequent month."
+  #   )
+  # })
   
-  # Title mapping
+  # title mapping
   title_map <- list(
-    "cohort_count" = "Customer Retention - Count",
-    "cohort_count_pct" = "Customer Retention - Pct",
-    "cohort_cumulative" = "Customer Retention - Cumulative",
-    "cohort_cumulative_pct" = "Customer Retention - Cumulative Pct"
+    "cohort_count" = "Customer Retention - Shows the Number of Customers that Placed an Order Relative to the Original Cohort",
+    "cohort_count_pct" = "Customer Retention - Shows the Percent of Customers that Placed an Order Relative to the Original Cohort",
+    "cohort_cumulative" = "Customer Retention - Shows the Number of Customers that Placed an Order in Current Month or Any Subsequent Month",
+    "cohort_cumulative_pct" = "Customer Retention - Shows the Percent of Customers that Placed an Order in Current Month or Any Subsequent Month"
   )
   
-  #  Dynamic title
+  #  dynamic title
   output$dynamic_title <- renderText({
-    title_map[[input$tableChoice]]  # Ensure we're using input$tableChoice for dynamic title
+    title_map[[input$tableChoice]]
   })
   
-  # Render plot 1
+  # plot 1
   output$customerPlot <- renderPlot({
     ggplot(unique_customers, aes(x = order_month, y = new_customers)) +
       geom_line(color = "#0073C2FF", size = 1.2) +  
@@ -132,7 +132,7 @@ function(input, output, session) {
       )
   })
   
-  # Render plot 2
+  # plot 2
   output$customerPlot_2 <- renderPlot({
     simple_avg_2 <- mean(new_groupby_filtered$customer_count, na.rm = TRUE)
     

@@ -79,7 +79,7 @@ print(cohort_count_pct)
 
 #COHORT CUMULATIVE
 
-# Identify all unique cohort start months
+# identify all unique cohort start months
 all_cohorts <- sales_orders |> 
   distinct(first_order_month) |> 
   arrange(first_order_month) |> 
@@ -144,7 +144,7 @@ for (cohort_date in all_cohorts) {
     # percentage of grand total
     if (initial_count > 0) {
       percentage <- round((count_customers / initial_count) * 100, 1)
-      # Add to dataframe, replacing 0 with NA
+      # add to table, replacing 0 with NA
       value_to_add <- if(percentage == 0) NA else percentage
     } else {
       value_to_add <- NA
