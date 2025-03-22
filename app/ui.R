@@ -1,6 +1,7 @@
 page_navbar(
   bg = "#1E2127",
-  nav_panel("Home", icon = icon("house"), p(
+  # --- ANDREW -----------------
+  nav_panel("Andrew", icon = icon("house"), p(
     fluidRow(
       p(
         h1("proj title ? something else ? "),
@@ -31,7 +32,8 @@ page_navbar(
       hr(),
     ),
   )),
-  nav_panel("Explore", icon = icon("chart-line"), p(
+  # ------ JEFF ------------
+  nav_panel("Jeff", icon = icon("chart-line"), p(
     page_sidebar(
       # App title ----
       title = "Customer Analysis",
@@ -94,12 +96,22 @@ page_navbar(
       )
     )
   )),
+  # --- DOLLADA ----
   nav_panel(
-    "customer jobs",
+    "Dollada",
     icon = icon("calculator"),
     navset_card_underline(
       # Tab Title
       title = "What we learned",
     )
-  )
+  ),
+  # --- GRACIE ----
+  nav_panel(
+    "Gracie",
+    icon = icon("calculator"),
+    navset_card_underline(
+      # Tab Title
+      title = "What we learned",
+    )
+  ),
 )
