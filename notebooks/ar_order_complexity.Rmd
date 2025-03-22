@@ -318,27 +318,104 @@ p4 <- top_20_total_jobs |>
   ) +
   theme_minimal() +
   theme(
-    axis.text.y = element_text(angle = 0, hjust = 1) # Adjust to horizontal
+    axis.text.x = element_text(angle = 0, hjust = 1) # Adjust to horizontal
   )
 
 ggplotly(p4, tooltip = "text")
 ```
 
 
-
+#### mean jobs per order
 ```{r}
+#| code-fold: true
 n_jobs_per_order <- jobs |>
   mutate(order_id = str_sub(job_id, 1, 5)) |>
   group_by(order_id) |>
   summarize(n_jobs = n_distinct(job_id))
 
 
-mean(n_jobs_per_order$n_jobs)
+mean_jobs_per_order <- mean(n_jobs_per_order$n_jobs)
+mean_jobs_per_order
 ```
----
-# TODO: 
-- add color gradients to bar charts
-- revenue per hour by customer? 
-- ratio of jobs : order
-- categorize orders by complexity and revenue generated
-- define thresholds and decide which types of orders are most desireable
+
+
+## Revenue per hour by customer
+
+### Job operations 2023 
+```{r}
+#| code-fold: true
+query <- "
+SELECT
+    jmo_job_id AS job_id,
+    jmo_created_date AS date_created,
+    sml_shipment_id AS ship_id,
+    sml_part_id AS part_id,
+    sml_sales_order_id AS order_id
+FROM job_operations_2023 j
+    INNER JOIN shipment_lines sl
+    ON sl.sml_job_id = j.jmo_job_id;
+"
+result_set <- dbSendQuery(connection, query)
+
+job_ops_23 <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+### Job operations 2024 
+```{r}
+#| code-fold: true
+# job operations joined with shipping lines for later join to shipments
+query <- "
+SELECT
+    jmo_job_id AS job_id,
+    jmo_created_date AS date_created,
+    sml_shipment_id AS ship_id,
+    sml_part_id AS part_id,
+    sml_sales_order_id AS order_id
+FROM job_operations_2024 j
+    INNER JOIN shipment_lines sl
+    ON sl.sml_job_id = j.jmo_job_id;
+"
+result_set <- dbSendQuery(connection, query)
+
+job_ops_24 <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+### Shipments 2023 & 2024
+
+```{r}
+#| code-fold: true
+query <- "
+SELECT
+    smp_shipment_id AS ship_id,
+    smp_ship_date AS ship_date,
+    smp_customer_organization_id AS customer_id,
+    smp_shipment_total AS shipment_cost
+
+FROM shipments s
+    INNER JOIN shipment_lines sl
+    ON s.smp_shipment_id = sl.sml_shipment_id;
+"
+
+result_set <- dbSendQuery(connection, query)
+
+shipments <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+
+```{r}
+#| code-fold: true
+job_ops <- bind_rows(job_ops_23, job_ops_24)
+
+ship_jobs <- inner_join(job_ops, shipments, by = "ship_id")
+```
+
+
+```{r}
+#| code-fold: true
+ship_jobs |>
+  group_by(ship_id) |>
+  summarize(sum(shipment_cost))
+```
