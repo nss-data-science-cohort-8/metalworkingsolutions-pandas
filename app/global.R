@@ -92,3 +92,22 @@ top20_customers_total <- customers |>
   arrange(desc(generated_revenue_2023)) |>
   select(customer_id) |>
   head(20)
+
+
+
+# New query to select jobs
+query <- "
+SELECT
+    jmp_customer_organization_id AS customer_id,
+    jmp_job_id AS job_id,
+    jmp_part_id AS part_id,
+    jmp_part_short_description AS part_description,
+    jmp_order_quantity AS order_quantity,
+    jmp_production_quantity AS production_quantity,
+    jmp_production_due_date AS production_due_date
+
+FROM jobs;
+"
+result_set <- dbSendQuery(connection, query)
+jobs <- dbFetch(result_set)
+dbClearResult(result_set)
