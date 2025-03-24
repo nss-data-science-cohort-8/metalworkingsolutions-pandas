@@ -225,7 +225,7 @@ ggplotly(p2, tooltip = c("text"))
 ```{r}
 #| code-fold: true
 # jobs per sales order per customer
-complex_orders <- jobs |>
+complex_orders_avg <- jobs |>
   filter(customer_id %in% top20_customers_total$customer_id) |>
   mutate(order_id = str_sub(job_id, 1, 5)) |>
   group_by(customer_id, order_id) |>
@@ -235,7 +235,7 @@ complex_orders <- jobs |>
   arrange(desc(avg_jobs_per_order), customer_id)
 
 
-p3 <- complex_orders |>
+p3 <- complex_orders_avg |>
   ggplot(
     aes(
       x = fct_reorder(customer_id, -avg_jobs_per_order),

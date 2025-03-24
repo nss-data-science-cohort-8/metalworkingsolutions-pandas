@@ -8,20 +8,12 @@ page_navbar(
 
         # Input: Year selector dropdown (2023, 2024, 2023 & 2024) ----
         uiOutput("dynamic_sidebar"),
-
-        # Add horizontal rule between elements
         hr(),
-
-        # Input: Toggle all customers button ----
-        actionButton(
-          "top_20_or_all",
-          "Toggle all customers"
-        )
       ),
 
       # Main panel for displaying outputs ----
       navset_card_underline(
-        title = "analyzing",
+        title = "customer analysis",
 
         # Panel with revenue-related content ----
         nav_panel("Revenue", icon = icon("dollar-sign"), p(
@@ -45,15 +37,37 @@ page_navbar(
 
   # ------ JEFF ------------
   nav_panel("Jeff", icon = icon("chart-line"), p(
-    page_sidebar(
-      title = "Customer Analysis",
-      sidebar = sidebar(),
-      navset_card_underline(
-        title = "analyzing",
-        nav_panel("retention"),
-        nav_panel("churn"),
-        nav_panel("peepeepoopoo")
-      )
+    navset_card_underline(
+      title = "customer retention",
+
+      # Panel with revenue-related content ----
+      nav_panel("Plot1", icon = icon("chart-line"), p(
+        plotOutput("customerPlot")
+      )),
+
+      # Panel with seasonal trends ----
+      nav_panel("Plot2", icon = icon("chart-line"), p(
+        plotOutput("customerPlot_2")
+      )),
+
+      # Panel with order complexity analysis ----
+      nav_panel("Table", icon = icon("chart-simple"), p(
+        div(
+          style = "width: 100%; overflow-x: auto;",
+          selectInput("tableChoice",
+            "Choose a table:",
+            choices = c(
+              "cohort_count",
+              "cohort_count_pct",
+              "cohort_cumulative",
+              "cohort_cumulative_pct"
+            ),
+            selected = "cohort_count",
+            width = "200px"
+          ),
+          DTOutput("cohortTable")
+        )
+      ))
     )
   )),
 
