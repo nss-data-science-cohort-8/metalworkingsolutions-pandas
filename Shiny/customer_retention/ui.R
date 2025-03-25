@@ -7,6 +7,7 @@
 #    https://shiny.posit.co/
 #
 
+#Original App for EDA
 ui <- fluidPage(
   titlePanel("Customer Base Changes Over Time"),
   

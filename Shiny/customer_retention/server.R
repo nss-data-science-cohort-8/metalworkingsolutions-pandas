@@ -7,6 +7,7 @@
 #    https://shiny.posit.co/
 #
 
+#Original App for EDA
 function(input, output, session) {
   
   # reactive table selection
@@ -116,8 +117,8 @@ function(input, output, session) {
                  linetype = "dotted", 
                  size = 1) +  
       labs(
-        title = "Unique Customers by Month ",              
-        subtitle = "Average of 42 Unique Customers per Month",  
+        title = "Unique Customers by Month in 2024 ",              
+        subtitle = "Average of 43.4 Unique Customers per Month",  
         x = " ",                                          
         y = "Unique Customers",                           
         caption = "Data Source: Sales Orders"             
@@ -125,7 +126,7 @@ function(input, output, session) {
       theme_minimal() +                                  
       scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") +  
       theme(
-        axis.text.x = element_text(angle = 90, hjust = 1),  
+        axis.text.x = element_text(angle = 45, hjust = 1),  
         plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  
         plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"),  
         plot.caption = element_text(hjust = 1, size = 10, face = "italic")
@@ -147,8 +148,8 @@ function(input, output, session) {
                  size = 1) + 
       
       labs(
-        title = "New Customers by Month",
-        subtitle = "Average of 3.5 new customers per Month",
+        title = "New Customers by Month in 2024",
+        subtitle = "Average of 2.9 new customers per Month",
         x = " ",
         y = "New Customers",
         caption = "Data Source: Sales Orders"
@@ -156,7 +157,7 @@ function(input, output, session) {
       theme_minimal() +
       scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") + 
       theme(
-        axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.text.x = element_text(angle = 45, hjust = 1),
         plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"),
         plot.caption = element_text(hjust = 1, size = 10, face = "italic")
