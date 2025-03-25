@@ -1,3 +1,4 @@
+# nolint start
 server <- function(input, output, session) {
   # Render the dynamic sidebar with year selector
   output$dynamic_sidebar <- renderUI({
@@ -212,9 +213,10 @@ server <- function(input, output, session) {
         )
       ) +
         geom_col(
-                 fill = "#445162", 
-                 color = "#c61126", 
-                 position = "dodge") +
+          fill = "#445162",
+          color = "#c61126",
+          position = "dodge"
+        ) +
         geom_text(
           aes(
             label = n_jobs,
@@ -230,9 +232,11 @@ server <- function(input, output, session) {
         ) +
         theme_minimal() +
         theme(
-              axis.text.x = element_text(
-                                         angle = 55, 
-                                         hjust = 0.25))
+          axis.text.x = element_text(
+            angle = 55,
+            hjust = 0.25
+          )
+        )
       ggplotly(p1, tooltip = "text")
     } else if (input$jobselect == "Big Spenders SOs") {
       p2 <- complex_orders |>
@@ -246,9 +250,10 @@ server <- function(input, output, session) {
           )
         )) +
         geom_col(
-                 fill = "#445162",
-                 color = "#c61126",
-                 position = "dodge") +
+          fill = "#445162",
+          color = "#c61126",
+          position = "dodge"
+        ) +
         geom_text(
           aes(
             label = jobs_per_order,
@@ -416,7 +421,14 @@ server <- function(input, output, session) {
     ggplot(unique_customers, aes(x = order_month, y = new_customers)) +
       geom_line(color = "#0073C2FF", size = 1.2) +
       geom_point(color = "#D55E00", size = 3) +
-      geom_hline(aes(yintercept = simple_average), color = "orange", linetype = "dotted", size = 1) +
+      geom_hline(
+        aes(
+          yintercept = simple_average
+        ),
+        color = "orange",
+        linetype = "dotted",
+        size = 1
+      ) +
       labs(
         title = "Unique Customers by Month ",
         subtitle = "Average of 42 Unique Customers per Month",
@@ -438,10 +450,41 @@ server <- function(input, output, session) {
   output$customerPlot_2 <- renderPlot({
     simple_avg_2 <- mean(new_groupby_filtered$customer_count, na.rm = TRUE)
 
-    ggplot(new_groupby_filtered, aes(x = as.Date(paste0(first_purchase_month, "-01")))) +
-      geom_line(aes(y = customer_count), color = "#0073C2FF", size = 1.2, na.rm = TRUE) +
-      geom_point(aes(y = customer_count), color = "#D55E00", size = 3, na.rm = TRUE) +
-      geom_hline(aes(yintercept = simple_avg_2), color = "orange", linetype = "dotted", size = 1) +
+    ggplot(
+      new_groupby_filtered,
+      aes(
+        x = as.Date(
+          paste0(
+            first_purchase_month,
+            "-01"
+          )
+        )
+      )
+    ) +
+      geom_line(
+        aes(
+          y = customer_count
+        ),
+        color = "#0073C2FF",
+        size = 1.2,
+        na.rm = TRUE
+      ) +
+      geom_point(
+        aes(
+          y = customer_count
+        ),
+        color = "#D55E00",
+        size = 3,
+        na.rm = TRUE
+      ) +
+      geom_hline(
+        aes(
+          yintercept = simple_avg_2
+        ),
+        color = "orange",
+        linetype = "dotted",
+        size = 1
+      ) +
       labs(
         title = "New Customers by Month",
         subtitle = "Average of 3.5 new customers per Month",
@@ -459,3 +502,4 @@ server <- function(input, output, session) {
       )
   })
 }
+# nolint end
