@@ -189,7 +189,14 @@ customer_revenue_total <- dbFetch(result_set)
 dbClearResult(result_set)
 
 
-
+complex_orders_avg <- jobs |>
+  filter(customer_id %in% top20_customers_total$customer_id) |>
+  mutate(order_id = str_sub(job_id, 1, 5)) |>
+  group_by(customer_id, order_id) |>
+  summarise(jobs_per_order = n_distinct(job_id), .groups = "drop") |>
+  group_by(customer_id) |>
+  summarise(avg_jobs_per_order = mean(jobs_per_order), .groups = "drop") |>
+  arrange(desc(avg_jobs_per_order), customer_id)
 
 # JEFF ----------------------------------------------
 

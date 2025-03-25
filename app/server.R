@@ -1,7 +1,4 @@
-# Define server logic
-function(input, output, session) {
-  # ---- ANDREW SERVER ---------------------------------------------------------
-
+server <- function(input, output, session) {
   # Render the dynamic sidebar with year selector
   output$dynamic_sidebar <- renderUI({
     selectInput(
@@ -13,7 +10,7 @@ function(input, output, session) {
 
   # Reactive dataset based on year selection
   filtered_data <- reactive({
-    req(input$year_selector) # Ensure input is available
+    req(input$year_selector)
 
     customer_filter <- switch(input$year_selector,
       "2023" = top20_customers_2023$customer_id,
@@ -47,28 +44,24 @@ function(input, output, session) {
       ) |>
       group_by(customer_id, month, year) |>
       summarise(generated_revenue = sum(generated_revenue), .groups = "drop") |>
-      mutate(
-        customer_id = factor(customer_id, levels = customer_filter)
-      )
+      mutate(customer_id = factor(customer_id, levels = customer_filter))
   })
 
-  # Render the appropriate seasonal trends plot based on year selection
+  # Render the seasonal trends plot
   output$seasonal <- renderPlotly({
     plot_data <- filtered_data()
-
-    # Validate input data to avoid errors
     validate(
-      need(nrow(plot_data) > 0, "No data available for the selected year(s).")
+      need(
+        nrow(plot_data) > 0, "No data available for the selected year(s)."
+      )
     )
 
-    # Dynamically adjust x-axis for combined view
     x_axis <- if (input$year_selector == "2023 & 2024") {
-      aes(x = make_date(year, month)) # Combine years on a date axis
+      aes(x = make_date(year, month))
     } else {
       aes(x = month)
     }
 
-    # Dynamic title based on year selection
     plot_title <- paste(
       "Change in Customer Generated Revenue -",
       input$year_selector
@@ -76,27 +69,17 @@ function(input, output, session) {
 
     p <- ggplot(plot_data, x_axis) +
       geom_line(aes(y = generated_revenue, color = customer_id)) +
-      labs(
-        title = plot_title,
-        x = "Month",
-        y = "Revenue ($)"
-      ) +
+      labs(title = plot_title, x = "Month", y = "Revenue ($)") +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 55, hjust = 1))
 
-    # Adjust x-axis for combined 2023 & 2024 view
     if (input$year_selector == "2023 & 2024") {
-      p <- p +
-        scale_x_date(
-          date_breaks = "1 month",
-          date_labels = "%b %Y"
-        )
+      p <- p + scale_x_date(date_breaks = "1 month", date_labels = "%b %Y")
     } else {
-      p <- p +
-        scale_x_continuous(
-          breaks = seq_along(month.name),
-          labels = month.name
-        )
+      p <- p + scale_x_continuous(
+        breaks = seq_along(month.name),
+        labels = month.name
+      )
     }
 
     ggplotly(p)
@@ -104,12 +87,8 @@ function(input, output, session) {
 
   # Render the "Jobs by Month" plot
   output$jobs_by_month <- renderPlotly({
-    # Ensure the dataset exists and is valid
-    validate(
-      need(exists("jobs"), "Jobs dataset is missing.")
-    )
+    validate(need(exists("jobs"), "Jobs dataset is missing."))
 
-    # Create the jobs-by-month plot
     p4 <- jobs |>
       filter(customer_id %in% top20_customers_total$customer_id) |>
       mutate(
@@ -131,23 +110,17 @@ function(input, output, session) {
           "\nNumber of jobs:", n_jobs
         )
       )) +
-      geom_bar(
-        position = "stack",
-        stat = "identity"
-      ) +
+      geom_bar(position = "stack", stat = "identity") +
       labs(
         title = "Number of Jobs by Due-Date",
         x = "Date",
         y = "Number of Jobs"
       ) +
       theme_minimal() +
-      theme(
-        axis.text.x = element_text(angle = 45, hjust = 1)
-      )
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
     ggplotly(p4, tooltip = "text")
   })
-
 
   filtered_data2 <- reactive({
     req(input$year_selector) # Ensure input is available
@@ -208,14 +181,153 @@ function(input, output, session) {
 
     ggplotly(p, tooltip = "text")
   })
+  # Render the "Job Complexity" plots
+  filtered_data3 <- reactive({
+    req(input$jobselect)
+    switch(input$jobselect,
+      "Jobs per customer" = top_20_jobs,
+      "Big Spenders SOs" = complex_orders,
+      "Other Customers SOs" = top_20_total_jobs,
+      "Avg. Jobs per SO" = complex_orders_avg
+    )
+  })
 
+  # Render the complexity plot
+  output$complexity <- renderPlotly({
+    plot_data3 <- filtered_data3()
+    validate(need(nrow(plot_data3) > 0, "No data available for the selection."))
 
+    plot_title <- paste("Order Complexity -", input$jobselect)
 
-
-
+    if (input$jobselect == "Jobs per customer") {
+      p1 <- ggplot(
+        plot_data3,
+        aes(
+          x = fct_reorder(customer_id, -n_jobs),
+          y = n_jobs,
+          text = paste(
+            "Customer ID: ", customer_id,
+            "\nNumber of Jobs: ", n_jobs
+          )
+        )
+      ) +
+        geom_col(fill = "#445162", color = "#c61126", position = "dodge") +
+        geom_text(
+          aes(
+            label = n_jobs,
+            y = n_jobs + 100
+          ),
+          color = "#445162",
+          size = 3
+        ) +
+        labs(
+          title = "Total Jobs by Customer ID",
+          x = "Customer ID",
+          y = "Number of Jobs"
+        ) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 55, hjust = 0.25))
+      ggplotly(p1, tooltip = "text")
+    } else if (input$jobselect == "Big Spenders SOs") {
+      p2 <- complex_orders |>
+        head(50) |>
+        ggplot(aes(
+          x = fct_reorder(order_id, -jobs_per_order),
+          y = jobs_per_order,
+          text = paste(
+            "customer: ", customer_id,
+            "\njobs/order: ", jobs_per_order
+          )
+        )) +
+        geom_col(fill = "#445162", color = "#c61126", position = "dodge") +
+        geom_text(
+          aes(
+            label = jobs_per_order,
+            y = jobs_per_order + 1
+          ),
+          color = "#445162",
+          size = 2
+        ) +
+        labs(
+          title = "Top 50 Sales orders by # jobs of Big Spenders",
+          x = "Order ID",
+          y = "Number of Jobs per Sales Order"
+        ) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 65, hjust = 1))
+      ggplotly(p2, tooltip = "text")
+    } else if (input$jobselect == "Other Customers SOs") {
+      p4 <- top_20_total_jobs |>
+        head(20) |>
+        ggplot(aes(
+          y = fct_reorder(order_id, n_jobs),
+          x = n_jobs,
+          text = paste(
+            "Customer ID: ", customer_id,
+            "\nNumber of Jobs: ", n_jobs
+          )
+        )) +
+        geom_bar(stat = "identity", fill = "#445162", color = "#c61126") +
+        geom_text(
+          aes(
+            label = n_jobs,
+            x = n_jobs - 2
+          ),
+          color = "#FFFFFF",
+          size = 3.5,
+          hjust = 1
+        ) +
+        geom_text(
+          aes(
+            label = customer_id,
+            x = n_jobs / 2
+          ),
+          color = "#a1a7b0",
+          size = 4,
+          angle = 0,
+          vjust = 0.5
+        ) +
+        labs(
+          title = "Most jobs by sales order for all customers",
+          y = "Sales Order ID",
+          x = "Number of Jobs per order"
+        ) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 0, hjust = 1))
+      ggplotly(p4, tooltip = "text")
+    } else if (input$jobselect == "Avg. Jobs per SO") {
+      p3 <- complex_orders_avg |>
+        ggplot(aes(
+          x = fct_reorder(customer_id, -avg_jobs_per_order),
+          y = avg_jobs_per_order,
+          text = paste(
+            "customer: ", customer_id,
+            "\navg jobs/order: ", avg_jobs_per_order
+          )
+        )) +
+        geom_col(fill = "#445162", color = "#c61126") +
+        geom_text(
+          aes(
+            label = round(avg_jobs_per_order, 1),
+            y = round(avg_jobs_per_order, 1) - 0.25
+          ),
+          color = "#ffffff",
+          size = 3.5
+        ) +
+        labs(
+          title = "Average Jobs per Sales Order per Customer",
+          x = "Customer",
+          y = "Average Number of Jobs"
+        ) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 55, hjust = 1))
+      ggplotly(p3, tooltip = "text")
+    } else {
+      return("Sorry, nothing to see here")
+    }
+  })
 
   # ---- JEFF SERVER ----------------------------------------------
-  # reactive table selection
   selected_table <- reactive({
     switch(input$tableChoice,
       "cohort_count" = cohort_count,
@@ -225,22 +337,18 @@ function(input, output, session) {
     )
   })
 
-  # render main table
   output$cohortTable <- renderDataTable({
     table_data <- selected_table()
-
-    # replace NAs in the table
     table_data[] <- lapply(table_data, function(x) {
       if (is.factor(x)) {
-        levels(x) <- c(levels(x), "") # Add empty level for factors
-        x[is.na(x)] <- "" # Replace NAs with empty strings
+        levels(x) <- c(levels(x), "")
+        x[is.na(x)] <- ""
       } else {
-        x[is.na(x)] <- "" # Replace NAs with empty strings
+        x[is.na(x)] <- ""
       }
       return(x)
     })
 
-    # render datatable with custom column widths
     datatable(
       table_data,
       options = list(
@@ -248,8 +356,8 @@ function(input, output, session) {
         autoWidth = FALSE,
         searching = FALSE,
         columnDefs = list(
-          list(targets = 0, width = "75px"), # column width
-          list(targets = "_all", width = "100px") # column width
+          list(targets = 0, width = "75px"),
+          list(targets = "_all", width = "100px")
         ),
         rowCallback = JS("
           function(row, data) {
@@ -288,29 +396,18 @@ function(input, output, session) {
       )
     )
   })
-  # title mapping
-  title_map <- list(
-    "cohort_count" = "Customer Retention - Shows the Number of Customers that Placed an Order Relative to the Original Cohort",
-    "cohort_count_pct" = "Customer Retention - Shows the Percent of Customers that Placed an Order Relative to the Original Cohort",
-    "cohort_cumulative" = "Customer Retention - Shows the Number of Customers that Placed an Order in Current Month or Any Subsequent Month",
-    "cohort_cumulative_pct" = "Customer Retention - Shows the Percent of Customers that Placed an Order in Current Month or Any Subsequent Month"
-  )
 
-  #  dynamic title
+  # Dynamic title for cohort table
   output$dynamic_title <- renderText({
     title_map[[input$tableChoice]]
   })
 
-  # plot 1
+  # Plot 1: Unique Customers by Month
   output$customerPlot <- renderPlot({
     ggplot(unique_customers, aes(x = order_month, y = new_customers)) +
       geom_line(color = "#0073C2FF", size = 1.2) +
       geom_point(color = "#D55E00", size = 3) +
-      geom_hline(aes(yintercept = simple_average),
-        color = "orange",
-        linetype = "dotted",
-        size = 1
-      ) +
+      geom_hline(aes(yintercept = simple_average), color = "orange", linetype = "dotted", size = 1) +
       labs(
         title = "Unique Customers by Month ",
         subtitle = "Average of 42 Unique Customers per Month",
@@ -328,20 +425,14 @@ function(input, output, session) {
       )
   })
 
-  # plot 2
+  # Plot 2: New Customers by Month
   output$customerPlot_2 <- renderPlot({
     simple_avg_2 <- mean(new_groupby_filtered$customer_count, na.rm = TRUE)
 
     ggplot(new_groupby_filtered, aes(x = as.Date(paste0(first_purchase_month, "-01")))) +
       geom_line(aes(y = customer_count), color = "#0073C2FF", size = 1.2, na.rm = TRUE) +
       geom_point(aes(y = customer_count), color = "#D55E00", size = 3, na.rm = TRUE) +
-
-      # Simple avg (dotted line)
-      geom_hline(aes(yintercept = simple_avg_2),
-        color = "orange",
-        linetype = "dotted",
-        size = 1
-      ) +
+      geom_hline(aes(yintercept = simple_avg_2), color = "orange", linetype = "dotted", size = 1) +
       labs(
         title = "New Customers by Month",
         subtitle = "Average of 3.5 new customers per Month",
