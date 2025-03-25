@@ -476,6 +476,7 @@ dbClearResult(result_set)
 
 ### customer revenue 2023
 ```{r}
+#| code-fold: true
 p5 <- customer_revenue_23 |>
   head(20) |>
   ggplot(

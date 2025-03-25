@@ -146,7 +146,6 @@ top_20_total_jobs <- jobs |>
   arrange(desc(n_jobs))
 
 
-
 query <- "
 SELECT
   EXTRACT(YEAR FROM smp_ship_date) AS year,

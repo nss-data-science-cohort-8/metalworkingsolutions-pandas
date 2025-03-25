@@ -52,7 +52,7 @@ function(input, output, session) {
       )
   })
 
-  # Render the appropriate revenue plot based on year selection
+  # Render the appropriate seasonal trends plot based on year selection
   output$seasonal <- renderPlotly({
     plot_data <- filtered_data()
 
@@ -141,6 +141,70 @@ function(input, output, session) {
 
     ggplotly(p4, tooltip = "text")
   })
+
+
+  filtered_data2 <- reactive({
+    req(input$year_selector) # Ensure input is available
+
+    selected_data <- switch(input$year_selector,
+      "2023" = customer_revenue_23,
+      "2024" = customer_revenue_24,
+      "2023 & 2024" = customer_revenue_total
+    )
+
+    selected_data |>
+      head(20)
+  })
+
+  # Render the appropriate revenue plot based on year selection
+  output$revenue <- renderPlotly({
+    plot_data <- filtered_data2()
+
+    # Validate input data to avoid errors
+    validate(
+      need(nrow(plot_data) > 0, "No data available for the selected year(s).")
+    )
+
+
+    # Dynamic title based on year selection
+    plot_title <- paste(
+      "Customer Revenue by Year -",
+      input$year_selector
+    )
+
+    p <- ggplot(
+      plot_data,
+      aes(
+        x = fct_reorder(customer_id, -total_revenue),
+        y = total_revenue,
+        text = paste(
+          "Customer ID:", customer_id,
+          "\nRevenue: ", total_revenue
+        )
+      )
+    ) +
+      geom_col(fill = "#A1A7B0", color = "#c61126") +
+      labs(
+        title = "Revenue by customer for 2023",
+        x = "Customer ID",
+        y = "Revenue Generated"
+      ) +
+      theme_minimal() +
+      theme(
+        axis.text.x = element_text(
+          angle = 50,
+          hjust = 1
+        ),
+        panel.background = element_rect(fill = "#445162", colour = "#c61126"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+      )
+
+    ggplotly(p, tooltip = "text")
+  })
+
+
+
 
 
 
