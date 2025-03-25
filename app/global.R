@@ -147,6 +147,51 @@ top_20_total_jobs <- jobs |>
 
 
 
+query <- "
+SELECT
+  EXTRACT(YEAR FROM smp_ship_date) AS year,
+  smp_customer_organization_id AS customer_id,
+  SUM(smp_shipment_total)::NUMERIC AS total_revenue
+FROM shipments
+GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+HAVING EXTRACT(YEAR FROM smp_ship_date) = 2023
+ORDER BY total_revenue DESC;
+"
+result_set <- dbSendQuery(connection, query)
+customer_revenue_23 <- dbFetch(result_set)
+dbClearResult(result_set)
+
+
+query <- "
+SELECT
+  EXTRACT(YEAR FROM smp_ship_date) AS year,
+  smp_customer_organization_id AS customer_id,
+  SUM(smp_shipment_total)::NUMERIC AS total_revenue
+FROM shipments
+GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+HAVING EXTRACT(YEAR FROM smp_ship_date) = 2024
+ORDER BY total_revenue DESC;
+"
+result_set <- dbSendQuery(connection, query)
+customer_revenue_24 <- dbFetch(result_set)
+dbClearResult(result_set)
+
+
+query <- "
+SELECT
+  smp_customer_organization_id AS customer_id,
+  SUM(smp_shipment_total)::NUMERIC AS total_revenue
+FROM shipments
+GROUP BY smp_customer_organization_id
+ORDER BY total_revenue DESC;
+"
+result_set <- dbSendQuery(connection, query)
+customer_revenue_total <- dbFetch(result_set)
+dbClearResult(result_set)
+
+
+
+
 # JEFF ----------------------------------------------
 
 
@@ -367,4 +412,3 @@ new_groupby_filtered <- new_groupby_filtered |>
 # simple avg
 new_groupby_filtered <- new_groupby_filtered |>
   mutate(simple_avg = mean(customer_count))
-

@@ -123,7 +123,6 @@ WITH jo_23_24 AS (
     FROM job_operations_2023 j
         INNER JOIN shipment_lines sl
         ON sl.sml_job_id = j.jmo_job_id
-    ORDER BY ship_id
 
     UNION 
 
@@ -153,5 +152,5 @@ ships AS (
 SELECT *
 FROM jo_23_24 j
     INNER JOIN ships s USING(ship_id)
-GROUP BY 
+GROUP BY j.job_id, j.hours, j.date_created, j.ship_id, j.part_id, j.order_id, s.ship_date, s.customer_id, s.shipment_cost
 LIMIT 5;

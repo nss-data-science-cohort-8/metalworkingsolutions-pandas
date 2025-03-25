@@ -31,8 +31,8 @@ connection <- dbConnect(
   host = "localhost",
   port = 5432,
   user = "postgres",
-  # password = Sys.getenv("DB_PASSWORD") # for nvim
-  password = rstudioapi::askForPassword("Database Password") # for Rstudio
+  password = Sys.getenv("DB_PASSWORD") # for nvim
+  # password = rstudioapi::askForPassword("Database Password") # for Rstudio
 )
 ```
 
@@ -418,4 +418,155 @@ ship_jobs <- inner_join(job_ops, shipments, by = "ship_id")
 ship_jobs |>
   group_by(ship_id) |>
   summarize(sum(shipment_cost))
+```
+
+
+
+```{r}
+#| code-fold: true
+query <- "
+SELECT
+  EXTRACT(YEAR FROM smp_ship_date) AS year,
+  smp_customer_organization_id AS customer_id,
+  SUM(smp_shipment_total)::NUMERIC AS total_revenue
+FROM shipments
+GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+HAVING EXTRACT(YEAR FROM smp_ship_date) = 2023
+ORDER BY total_revenue DESC;
+"
+result_set <- dbSendQuery(connection, query)
+customer_revenue_23 <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+
+```{r}
+#| code-fold: true
+query <- "
+SELECT
+  EXTRACT(YEAR FROM smp_ship_date) AS year,
+  smp_customer_organization_id AS customer_id,
+  SUM(smp_shipment_total)::NUMERIC AS total_revenue
+FROM shipments
+GROUP BY smp_customer_organization_id, EXTRACT(YEAR FROM smp_ship_date)
+HAVING EXTRACT(YEAR FROM smp_ship_date) = 2024
+ORDER BY total_revenue DESC;
+"
+result_set <- dbSendQuery(connection, query)
+customer_revenue_24 <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+
+```{r}
+#| code-fold: true
+query <- "
+SELECT
+  smp_customer_organization_id AS customer_id,
+  SUM(smp_shipment_total)::NUMERIC AS total_revenue
+FROM shipments
+GROUP BY smp_customer_organization_id
+ORDER BY total_revenue DESC;
+"
+result_set <- dbSendQuery(connection, query)
+customer_revenue_total <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+
+### customer revenue 2023
+```{r}
+p5 <- customer_revenue_23 |>
+  head(20) |>
+  ggplot(
+    aes(
+      x = fct_reorder(customer_id, -total_revenue),
+      y = total_revenue,
+      text = paste(
+        "Customer ID:", customer_id,
+        "\nRevenue: ", total_revenue
+      )
+    )
+  ) +
+  geom_col(fill = "#A1A7B0", color = "#c61126") +
+  labs(
+    title = "Revenue by customer for 2023",
+    x = "Customer ID",
+    y = "Revenue Generated"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 50, hjust = 1), # Adjust to horizontal
+    panel.background = element_rect(fill = "#445162", colour = "#c61126"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+  )
+
+ggplotly(p5, tooltip = "text")
+  ```
+
+
+### customer revenue 2024
+
+```{r}
+#| code-fold: true
+p6 <- customer_revenue_24 |>
+  head(20) |>
+  ggplot(
+    aes(
+      x = fct_reorder(customer_id, -total_revenue),
+      y = total_revenue,
+      text = paste(
+        "Customer ID:", customer_id,
+        "\nRevenue: ", total_revenue
+      )
+    )
+  ) +
+  geom_col(fill = "#A1A7B0", color = "#c61126") +
+  labs(
+    title = "Revenue by customer for 2024",
+    x = "Customer ID",
+    y = "Revenue Generated"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 50, hjust = 1), # Adjust to horizontal
+    panel.background = element_rect(fill = "#445162", colour = "#c61126"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+  )
+
+ggplotly(p6, tooltip = "text")
+```
+
+### Customer revenue both
+```{r}
+#| code-fold: true
+p7 <- customer_revenue_total |>
+  head(20) |>
+  ggplot(
+    aes(
+      x = fct_reorder(customer_id, -total_revenue),
+      y = total_revenue,
+      text = paste(
+        "Customer ID:", customer_id,
+        "\nRevenue: ", total_revenue
+      )
+    )
+  ) +
+  geom_col(fill = "#A1A7B0", color = "#c61126") +
+  labs(
+    title = "Revenue by customer for both years",
+    x = "Customer ID",
+    y = "Revenue Generated"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 50, hjust = 1), # Adjust to horizontal
+    panel.background = element_rect(fill = "#445162", colour = "#c61126"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+  )
+
+ggplotly(p7, tooltip = "text")
 ```
