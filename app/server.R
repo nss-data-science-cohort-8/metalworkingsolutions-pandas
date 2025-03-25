@@ -117,18 +117,24 @@ function(input, output, session) {
         year = year(production_due_date),
         month_year = make_date(year, month)
       ) |>
-      group_by(month_year) |>
+      group_by(month_year, customer_id) |>
       summarise(n_jobs = n_distinct(job_id), .groups = "drop") |>
       arrange(desc(n_jobs)) |>
+      mutate(customer_id = fct_reorder(customer_id, n_jobs, .desc = FALSE)) |>
       ggplot(aes(
         x = month_year,
         y = n_jobs,
+        fill = customer_id,
         text = paste(
           "Month:", month_year,
+          "\nCustomer: ", customer_id,
           "\nNumber of jobs:", n_jobs
         )
       )) +
-      geom_col(fill = "#445162") +
+      geom_bar(
+        position = "stack",
+        stat = "identity"
+      ) +
       labs(
         title = "Number of Jobs by Due-Date",
         x = "Date",

@@ -24,7 +24,10 @@ page_navbar(
         nav_panel("Seasonal Trends", icon = icon("icicles"), p(
           plotlyOutput("seasonal"),
           hr(),
-          plotlyOutput("jobs_by_month") # Added the new jobs plot here
+          conditionalPanel(
+            condition = "input.year_selector === '2023 & 2024'",
+            plotlyOutput("jobs_by_month")
+          )
         )),
 
         # Panel with order complexity analysis ----

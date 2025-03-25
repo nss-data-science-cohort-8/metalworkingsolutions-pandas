@@ -571,3 +571,44 @@ p7 <- customer_revenue_total |>
 
 ggplotly(p7, tooltip = "text")
 ```
+
+### Share of jobs by customer per month by due date
+```{r}
+#| code-fold: true
+p4 <- jobs |>
+  filter(customer_id %in% top20_customers_total$customer_id) |>
+  mutate(
+    month = month(production_due_date),
+    year = year(production_due_date),
+    month_year = make_date(year, month)
+  ) |>
+  group_by(month_year, customer_id) |>
+  summarise(n_jobs = n_distinct(job_id), .groups = "drop") |>
+  arrange(desc(n_jobs)) |>
+  mutate(customer_id = fct_reorder(customer_id, n_jobs, .desc = FALSE)) |>
+  ggplot(aes(
+    x = month_year,
+    y = n_jobs,
+    fill = customer_id,
+    text = paste(
+      "Month:", month_year,
+      "\nCustomer: ", customer_id,
+      "\nNumber of jobs:", n_jobs
+    )
+  )) +
+  geom_bar(
+    position = "stack",
+    stat = "identity"
+  ) +
+  labs(
+    title = "Number of Jobs by Due-Date",
+    x = "Date",
+    y = "Number of Jobs"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+ggplotly(p4, tooltip = "text")
+```
