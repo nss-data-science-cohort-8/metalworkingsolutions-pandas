@@ -1,0 +1,413 @@
+---
+title: "seasonal trends"
+output: 
+  html_notebook:
+    toc: true
+    code-fold: true
+knitr: true
+---
+
+install libraries
+```{r}
+#| code-fold: true
+shh <- suppressMessages
+shh(library(DBI))
+shh(library(RPostgres))
+shh(library(tidyverse))
+shh(library(lubridate))
+shh(library(plotly))
+shh(library(glue))
+```
+
+set up connection to postgres
+```{r}
+#| code-fold: true
+connection <- dbConnect(
+  Postgres(),
+  dbname = "metalworkingsolutions",
+  host = "localhost",
+  port = 5432,
+  user = "postgres",
+  password = "postgres"
+  # password = rstudioapi::askForPassword("Database Password")
+)
+```
+
+create query for top 20 customers for seasonal evaluation
+```{r}
+#| code-fold: true
+query <- "
+SELECT
+    omp_customer_organization_id,
+    omp_sales_order_id,
+    omp_customer_po,
+    omp_order_date,
+    uomp_promise_date,
+    omp_payment_term_id,
+    omp_order_total_base
+FROM sales_orders;
+"
+result_set <- dbSendQuery(connection, query)
+```
+
+create tibble for customers
+```{r}
+#| code-fold: true
+customers <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+
+### get top 20 customers by generated revenue for 2023, 2024, and both years combined
+
+2023
+```{r}
+#| code-fold: true
+top20_customers_2023 <- customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  group_by(omp_customer_organization_id) |>
+  mutate(omp_order_date = year(omp_order_date)) |>
+  filter(omp_order_date %in% 2023) |>
+  summarise(generated_revenue_2023 = sum(omp_order_total_base)) |>
+  rename(customer_id = omp_customer_organization_id) |>
+  arrange(desc(generated_revenue_2023)) |>
+  select(customer_id) |>
+  head(20)
+```
+
+2024
+```{r}
+#| code-fold: true
+top20_customers_2024 <- customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  group_by(omp_customer_organization_id) |>
+  mutate(omp_order_date = year(omp_order_date)) |>
+  filter(omp_order_date %in% 2024) |>
+  summarise(generated_revenue_2023 = sum(omp_order_total_base)) |>
+  rename(customer_id = omp_customer_organization_id) |>
+  arrange(desc(generated_revenue_2023)) |>
+  select(customer_id) |>
+  head(20)
+```
+
+2023 & 2024
+```{r}
+#| code-fold: true
+top20_customers_total <- customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  group_by(omp_customer_organization_id) |>
+  mutate(omp_order_date = year(omp_order_date)) |>
+  summarise(generated_revenue_2023 = sum(omp_order_total_base)) |>
+  rename(customer_id = omp_customer_organization_id) |>
+  arrange(desc(generated_revenue_2023)) |>
+  select(customer_id) |>
+  head(20)
+```
+
+
+## monthly change by customer, 2023
+Using plotly for interactivity. 
+```{r, out.width='100%'}
+#| code-fold: true
+p <- customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  mutate(month = month(omp_order_date), year = year(omp_order_date)) |>
+  rename(
+    customer_id = omp_customer_organization_id,
+    generated_revenue = omp_order_total_base
+  ) |>
+  filter(year == 2023, customer_id %in% top20_customers_2023$customer_id) |>
+  group_by(customer_id, month) |>
+  summarise(generated_revenue = sum(generated_revenue), .groups = "drop") |>
+  mutate(
+    customer_id = factor(customer_id,
+      levels = top20_customers_2023$customer_id
+    )
+  ) |>
+  ggplot(aes(x = month, y = generated_revenue, color = customer_id)) +
+  geom_line() +
+  scale_x_continuous(
+    breaks = seq_along(month.name),
+    labels = month.name
+  ) +
+  labs(
+    title = "Change in Customer Generated Revenue 2023",
+    x = "Month",
+    y = "Revenue ($)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  )
+ggplotly(p)
+```
+
+ggplot version for displaying inline better.
+```{r, fig.width=10}
+#| code-fold: true
+customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  mutate(month = month(omp_order_date), year = year(omp_order_date)) |>
+  rename(
+    customer_id = omp_customer_organization_id,
+    generated_revenue = omp_order_total_base
+  ) |>
+  filter(year == 2023, customer_id %in% top20_customers_2023$customer_id) |>
+  group_by(customer_id, month) |>
+  summarise(generated_revenue = sum(generated_revenue), .groups = "drop") |>
+  mutate(
+    customer_id = factor(customer_id,
+      levels = top20_customers_2023$customer_id
+    )
+  ) |>
+  ggplot(aes(x = month, y = generated_revenue, color = customer_id)) +
+  geom_line() +
+  scale_x_continuous(
+    breaks = seq_along(month.name),
+    labels = month.name
+  ) +
+  labs(
+    title = "Change in Customer Generated Revenue 2023",
+    x = "Month",
+    y = "Revenue ($)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  )
+```
+
+## monthly change by customer, 2024
+Using plotly for interactivity 
+```{r}
+#| code-fold: true
+p1 <- customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  mutate(month = month(omp_order_date), year = year(omp_order_date)) |>
+  rename(
+    customer_id = omp_customer_organization_id,
+    generated_revenue = omp_order_total_base
+  ) |>
+  filter(year == 2024, customer_id %in% top20_customers_2024$customer_id) |>
+  group_by(customer_id, month) |>
+  summarise(generated_revenue = sum(generated_revenue), .groups = "drop") |>
+  mutate(
+    customer_id = factor(customer_id,
+      levels = top20_customers_2024$customer_id
+    )
+  ) |>
+  ggplot(aes(x = month, y = generated_revenue, color = customer_id)) +
+  geom_line() +
+  scale_x_continuous(
+    breaks = seq_along(month.name),
+    labels = month.name
+  ) +
+  labs(
+    title = "Change in Customer Generated Revenue 2024",
+    x = "Month",
+    y = "Revenue ($)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  )
+ggplotly(p1)
+```
+
+using ggplot for better inline visibility
+```{r, fig.width=10}
+#| code-fold: true
+customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  mutate(month = month(omp_order_date), year = year(omp_order_date)) |>
+  rename(
+    customer_id = omp_customer_organization_id,
+    generated_revenue = omp_order_total_base
+  ) |>
+  filter(year == 2024, customer_id %in% top20_customers_2024$customer_id) |>
+  group_by(customer_id, month) |>
+  summarise(generated_revenue = sum(generated_revenue), .groups = "drop") |>
+  mutate(
+    customer_id = factor(customer_id,
+      levels = top20_customers_2024$customer_id
+    )
+  ) |>
+  ggplot(aes(x = month, y = generated_revenue, color = customer_id)) +
+  geom_line() +
+  scale_x_continuous(
+    breaks = seq_along(month.name),
+    labels = month.name
+  ) +
+  labs(
+    title = "Change in Customer Generated Revenue 2024",
+    x = "Month",
+    y = "Revenue ($)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  )
+```
+
+2023 + 2024
+```{r}
+#| code-fold: true
+p2 <- customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  mutate(
+    month = month(omp_order_date),
+    year = year(omp_order_date),
+    month_year = make_date(year, month)
+  ) |>
+  rename(
+    customer_id = omp_customer_organization_id,
+    generated_revenue = omp_order_total_base
+  ) |>
+  filter(customer_id %in% top20_customers_total$customer_id) |>
+  group_by(customer_id, month_year) |> # Group by month_year
+  summarise(generated_revenue = sum(generated_revenue), .groups = "drop") |>
+  mutate(
+    customer_id = factor(customer_id,
+      levels = top20_customers_total$customer_id
+    )
+  ) |>
+  ggplot(aes(x = month_year, y = generated_revenue, color = customer_id)) +
+  geom_line() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b %Y") + # Format x-axis
+  labs(
+    title = "Change in Customer Generated Revenue 2023 + 2024",
+    x = "Month",
+    y = "Revenue ($)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  )
+
+ggplotly(p2)
+```
+
+### ggplot for inline visibility
+```{r, fig.width=10}
+#| code-fold: true
+customers |>
+  select(omp_order_date, omp_customer_organization_id, omp_order_total_base) |>
+  mutate(
+    month = month(omp_order_date),
+    year = year(omp_order_date),
+    month_year = make_date(year, month)
+  ) |>
+  rename(
+    customer_id = omp_customer_organization_id,
+    generated_revenue = omp_order_total_base
+  ) |>
+  filter(customer_id %in% top20_customers_total$customer_id) |>
+  group_by(customer_id, month_year) |> # Group by month_year
+  summarise(generated_revenue = sum(generated_revenue), .groups = "drop") |>
+  mutate(
+    customer_id = factor(customer_id,
+      levels = top20_customers_total$customer_id
+    )
+  ) |>
+  ggplot(aes(x = month_year, y = generated_revenue, color = customer_id)) +
+  geom_line() +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b %Y") + # Format x-axis
+  labs(
+    title = "Change in Customer Generated Revenue 2023 + 2024",
+    x = "Month",
+    y = "Revenue ($)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  )
+```
+
+### New query to select jobs
+```{r}
+#| code-fold: true
+query <- "
+SELECT
+    jmp_customer_organization_id AS customer_id,
+    jmp_job_id AS job_id,
+    jmp_part_id AS part_id,
+    jmp_part_short_description AS part_description,
+    jmp_order_quantity AS order_quantity,
+    jmp_production_quantity AS production_quantity,
+    jmp_production_due_date AS production_due_date
+
+FROM jobs;
+"
+result_set <- dbSendQuery(connection, query)
+jobs <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+```{r}
+#| code-fold: true
+p3 <- jobs |>
+  filter(customer_id %in% top20_customers_total$customer_id) |>
+  group_by(customer_id) |>
+  summarise(n_jobs = n_distinct(job_id)) |>
+  arrange(desc(n_jobs)) |>
+  ggplot(aes(
+    x = fct_reorder(customer_id, -n_jobs),
+    y = n_jobs,
+    text = paste("Customer:", customer_id, "\nNumber of Jobs:", n_jobs)
+  )) +
+  geom_col(fill = "#445162") +
+  labs(
+    title = "Number of jobs by Customer",
+    x = "Customer",
+    y = "Number of Jobs"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 55, hjust = 1)
+  )
+
+ggplotly(p3, tooltip = "text")
+```
+### Number of jobs by month of due date
+```{r}
+#| code-fold: true
+p4 <- jobs |>
+  filter(customer_id %in% top20_customers_total$customer_id) |>
+  mutate(
+    month = month(production_due_date),
+    year = year(production_due_date),
+    month_year = make_date(year, month)
+  ) |>
+  group_by(month_year) |>
+  summarise(n_jobs = n_distinct(job_id)) |>
+  arrange(desc(n_jobs)) |>
+  ggplot(aes(
+    x = month_year,
+    y = n_jobs,
+    text = paste(
+      "Month:", month_year,
+      "\nNumber of jobs:", n_jobs
+    )
+  )) +
+  geom_col(fill = "#445162") +
+  labs(
+    title = "Number of jobs by Due-Date",
+    x = "Date",
+    y = "Number of jobs"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+ggplotly(p4, tooltip = "text")
+```
+
+
+
+
+
+
+
+
+
