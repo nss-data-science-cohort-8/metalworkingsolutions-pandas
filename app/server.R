@@ -211,7 +211,10 @@ server <- function(input, output, session) {
           )
         )
       ) +
-        geom_col(fill = "#445162", color = "#c61126", position = "dodge") +
+        geom_col(
+                 fill = "#445162", 
+                 color = "#c61126", 
+                 position = "dodge") +
         geom_text(
           aes(
             label = n_jobs,
@@ -226,7 +229,10 @@ server <- function(input, output, session) {
           y = "Number of Jobs"
         ) +
         theme_minimal() +
-        theme(axis.text.x = element_text(angle = 55, hjust = 0.25))
+        theme(
+              axis.text.x = element_text(
+                                         angle = 55, 
+                                         hjust = 0.25))
       ggplotly(p1, tooltip = "text")
     } else if (input$jobselect == "Big Spenders SOs") {
       p2 <- complex_orders |>
@@ -239,7 +245,10 @@ server <- function(input, output, session) {
             "\njobs/order: ", jobs_per_order
           )
         )) +
-        geom_col(fill = "#445162", color = "#c61126", position = "dodge") +
+        geom_col(
+                 fill = "#445162",
+                 color = "#c61126",
+                 position = "dodge") +
         geom_text(
           aes(
             label = jobs_per_order,
