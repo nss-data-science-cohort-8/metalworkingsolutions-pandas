@@ -1,3 +1,4 @@
+
 ui <- page_navbar(
   bg = "#1E2127",
   nav_panel("Andrew", icon = icon("house"), p(
@@ -55,11 +56,12 @@ ui <- page_navbar(
     )
   )),
   nav_panel("Dollada",
-    icon = icon("calculator"),
-    navset_card_underline(title = "What we learned")
+            icon = icon("calculator"),
+            navset_card_underline(title = "What we learned")
   ),
   nav_panel("Gracie",
-    icon = icon("calculator"),
-    navset_card_underline(title = "What we learned")
+            icon = icon("calculator"),
+            navset_card_underline(title = "What we learned")
   )
 )
+
