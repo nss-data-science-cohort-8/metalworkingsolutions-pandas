@@ -14,6 +14,10 @@ Packages
 
 library(DBI)
 #install.packages("RPostgres")
+#install.packages("readxl")  # Only if 'readxl' is not already installed
+#install.packages("reactable")
+library(reactable)
+library(readxl)
 library(RPostgres)
 library(tidyverse)
 library(lubridate)
@@ -304,15 +308,55 @@ customers_month
 
 
 ```{r}
-customer_activity <- customers_month |> 
+
+customers_month <- so_query_result |> 
+  mutate(order_month = floor_date(order_date, "month"))
+
+unique_customers <- customers_month |> 
   group_by(order_month) |> 
-  summarise(new_customers = n_distinct(customer_id))
+  summarise(new_customers = n_distinct(customer_id)) |> 
+  mutate(
+    # Calculate the simple average by dividing total new customers by row count
+    simple_average = sum(new_customers) / n()
+  )
+
+# View the updated customer_activity data frame
+unique_customers
 
 
 
-ggplot(customer_activity, aes(x = order_month, y = new_customers)) +
-  geom_line() +
-  labs(title = "new customer by month", x = "Month", y = "New Customers")
+library(ggplot2)
+
+# Convert 'order_month' to Date (keeping only the year-month information)
+unique_customers$order_month <- as.Date(format(unique_customers$order_month, "%Y-%m-01"))
+
+
+
+# Plot the data and add the simple average line
+ggplot(unique_customers, aes(x = order_month, y = new_customers)) +
+  geom_line(color = "#0073C2FF", size = 1.2) +  # Color the line and increase size
+  geom_point(color = "#D55E00", size = 3) +      # Add red points on the line for emphasis
+  geom_hline(aes(yintercept = simple_average[1]), 
+             color = "orange", 
+             linetype = "dotted", 
+             size = 1) +  # Add simple average line (dotted and orange)
+  labs(
+    title = "Unique Customers by Month",              # Title
+    subtitle = "Tracking customer growth over time", # Optional subtitle
+    x = " ",                                  # X-axis label
+    y = "Unique Customers",                          # Y-axis label
+    caption = "Data Source: Sales Orders"     # Optional caption
+  ) +
+  theme_minimal() +                               # Clean and minimal theme
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") + # Date formatting
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels for readability
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  # Title style
+    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"), # Subtitle style
+    plot.caption = element_text(hjust = 1, size = 10, face = "italic")   # Caption style
+  )
+
+
 
 ```
 
@@ -364,30 +408,112 @@ customer_order_summary
 ```
 
 ```{r}
+library(dplyr)
+library(lubridate)
+
+customer_order_summary <- customer_cohort_df |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    days_between = as.numeric(difftime(max(order_date), min(order_date), units = "days"))
+  ) %>%
+  ungroup()  
+
+
+avg_days_all_customers <- mean(customer_order_summary$days_between, na.rm = TRUE)
+
+
+customer_order_summary <- customer_order_summary |> 
+  mutate(avg_days_diff = avg_days_all_customers)
+
+# Set the cutoff date for churn (e.g., 60 days ago)
+cutoff_date <- Sys.Date() - 60
+
+# Summarize customer data with first and last order dates, and retention period (days between)
+customer_order_summary <- customer_cohort_df |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    retention_period = as.numeric(difftime(max(order_date), min(order_date), units = "days"))  # Retention period (days between first and last order)
+  ) %>%
+  ungroup()  
+
+# Identify churned customers based on the cutoff date
+churned_customers <- customer_order_summary %>%
+  filter(last_order_date < cutoff_date)  # Customers who haven't purchased in the last 60 days
+
+# Calculate churn rate
+churn_rate <- nrow(churned_customers) / nrow(customer_order_summary) * 100
+
+# Display the churn rate
+churned_customers
 
 ```
 
 ```{r}
 
+cohort_count <- read_excel("../metalworkingsolutions-pandas/read_cohort_count.xlsx")
+cohort_count
+```
+
+```{r}
+library(dplyr)
+
+
+
 ```
 
 ```{r}
 
-```
-
-```{r}
 
 ```
 
 ```{r}
 
+
+# Create a reactable table with conditional formatting for each row starting from column '1'
+reactable(cohort_count, 
+          columns = setNames(
+            lapply(4:ncol(cohort_count), function(i) {  # Start from column '1', so we skip '0' column
+              colDef(
+                style = function(value, index) {
+                  # Get the row for the student (index will be passed here)
+                  row <- cohort_count[index, ]
+                  
+                  # Find the min and max for the student's scores (columns 4 to the end)
+                  min_val <- min(row[4:ncol(cohort_count)], na.rm = TRUE)
+                  max_val <- max(row[4:ncol(cohort_count)], na.rm = TRUE)
+                  
+                  # Normalize the value for this student's row based on their min and max
+                  color_scale <- rescale(value, to = c(0, 1), from = c(min_val, max_val))
+                  
+                  # Define the color scale: red for low, green for high
+                  color <- col_numeric(
+                    palette = c("red", "green"), 
+                    domain = c(0, 1)
+                  )(color_scale)
+                  
+                  # Return the background color
+                  list(background = color)
+                }
+              )
+            }), 
+            colnames(cohort_count)[4:ncol(cohort_count)]  # Name columns starting from '1'
+          )
+)
+
+
 ```
 
 ```{r}
 
+
+
+
 ```
 
-```{r}
 
 ```
 

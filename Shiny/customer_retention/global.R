@@ -16,7 +16,7 @@ library(scales)
 # Original App for EDA
 # Database
 con <- dbConnect(Postgres(),                
-                 dbname = 'metalworking',
+                 dbname = 'metalworkingsolutions',
                  host = 'localhost',    
                  port = 5432, 
                  user = 'postgres',

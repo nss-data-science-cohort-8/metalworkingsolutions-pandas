@@ -122,30 +122,39 @@ new_groupby_filtered
 
 ```{r}
 
+
+simple_avg_2 <- mean(new_groupby_filtered$customer_count, na.rm = TRUE)
+
 ggplot(new_groupby_filtered, aes(x = as.Date(paste0(first_purchase_month, "-01")))) +
+  geom_line(aes(y = customer_count), color = "#0073C2FF", size = 1.2, na.rm = TRUE) +      
+  geom_point(aes(y = customer_count), color = "#D55E00", size = 3, na.rm = TRUE) +                  
   
-  geom_line(aes(y = customer_count), color = "blue", size = 1, na.rm = TRUE) +      
-  geom_point(aes(y = customer_count), color = "red", na.rm = TRUE) +                  
-  
-  # 6m rollin
-  geom_line(aes(y = rolling_avg), color = "green", size = 1.2, linetype = "dashed", na.rm = TRUE) +  
-  geom_point(aes(y = rolling_avg), color = "green", shape = 17, size = 3, na.rm = TRUE) +           
-  
-  # simple avg
-  geom_hline(aes(yintercept = simple_avg[1]), color = "orange", linetype = "dotted", size = 1) + 
+  # Simple avg (dotted line)
+  geom_hline(aes(yintercept = simple_avg_2), 
+             color = "orange", 
+             linetype = "dotted", 
+             size = 1) + 
   
   labs(
-    title = "New Customers by Month (avg 3.5 New Customers per Month)",
+    title = "New Customers by Month",
+    subtitle = "Tracking customer growth over time",
     x = " ",
-    y = "Count",
-    caption = "Customer Base Analysis"
+    y = "New Customers",
+    caption = "Data Source: Sales Orders"
   ) +
   theme_minimal() +
   scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") + 
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(hjust = 0.5)
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"),
+    plot.caption = element_text(hjust = 1, size = 10, face = "italic")
   )
+
+ 
+
+
+  
 ```
 
 
@@ -174,6 +183,46 @@ merged_data
 
 
 ```{r}
+       
+library(ggplot2)
+
+# Assuming simple_avg_value is the average you want to represent
+simple_avg_value <- mean(new_groupby_filtered$customer_count, na.rm = TRUE)
+
+ggplot(new_groupby_filtered, aes(x = as.Date(paste0(first_purchase_month, "-01")))) +
+  
+  geom_line(aes(y = customer_count), color = "blue", size = 1, na.rm = TRUE) +      
+  geom_point(aes(y = customer_count), color = "red", na.rm = TRUE) +                  
+  
+  # 6m rolling average
+  geom_line(aes(y = rolling_avg), color = "green", size = 1.2, linetype = "dashed", na.rm = TRUE) +  
+  geom_point(aes(y = rolling_avg), color = "green", shape = 17, size = 3, na.rm = TRUE) +           
+  
+  # simple avg (dotted line)
+  geom_hline(aes(yintercept = simple_avg_value), color = "orange", linetype = "dotted", size = 1) + 
+  
+  labs(
+    title = "New Customers by Month (avg 3.5 New Customers per Month)",
+    x = " ",
+    y = "Count",
+    caption = "Customer Base Analysis"
+  ) +
+  theme_minimal() +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  
+  # Add label for the average (dotted line) using annotate()
+  annotate("text", 
+           x = max(as.Date(paste0(first_purchase_month, "-01"))), 
+           y = simple_avg_value, 
+           label = "Average", 
+           color = "orange", 
+           vjust = -1, 
+           size = 5)
+
 
 ```
 
@@ -318,11 +367,88 @@ result
 
 
 ```{r}
+# Identify all unique cohort start months
+all_cohorts <- sales_orders |> 
+  distinct(first_order_month) |> 
+  arrange(first_order_month) |> 
+  pull(first_order_month)
 
+# Initialize empty result dataframe
+cohort_cumulative <- data.frame(first_order_month = all_cohorts)
+
+# Loop through each cohort
+for (cohort_date in all_cohorts) {
+  # Filter data for this cohort
+  cohort_data <- sales_orders |> 
+    filter(first_order_month == cohort_date)
+  
+  # Loop through each month (0-22)
+  for (i in 0:22) {
+    count_customers <- cohort_data |> 
+      filter(months_since_first_order >= i) |> 
+      summarise(customer_count = n_distinct(customer_id)) |> 
+      pull(customer_count)
+    
+    # Add to result dataframe - just use the number as column name
+    cohort_cumulative[cohort_cumulative$first_order_month == cohort_date, as.character(i)] <- count_customers
+  }
+}
+
+# Show the result
+cohort_cumulative
 ```
 
 ```{r}
+# Identify all unique cohort start months
+all_cohorts <- sales_orders |> 
+  distinct(first_order_month) |> 
+  arrange(first_order_month) |> 
+  pull(first_order_month)
 
+# create empty tibble
+cohort_cumulative_normalized <- data.frame(first_order_month = all_cohorts)
+
+# loop through each cohort
+for (cohort_date in all_cohorts) {
+  # Filter data for this cohort
+  cohort_data <- sales_orders |> 
+    filter(first_order_month == cohort_date)
+  
+  # First get the initial cohort size (month 0)
+  initial_count <- cohort_data |> 
+    filter(months_since_first_order == 0) |> 
+    summarise(customer_count = n_distinct(customer_id)) |> 
+    pull(customer_count)
+  
+  # Store the initial count in column "0"
+  cohort_cumulative_normalized[cohort_cumulative_normalized$first_order_month == cohort_date, "0"] <- initial_count
+  
+  # Now calculate percentages for months 1-22
+  for (i in 1:22) {
+    # Get count of customers still active after i months
+    count_customers <- cohort_data |> 
+      filter(months_since_first_order >= i) |> 
+      summarise(customer_count = n_distinct(customer_id)) |> 
+      pull(customer_count)
+    
+    # Calculate percentage of initial cohort
+    if (initial_count > 0) {
+      percentage <- round((count_customers / initial_count) * 100, 1)
+      # Add to dataframe, replacing 0 with NA
+      value_to_add <- if(percentage == 0) NA else percentage
+    } else {
+      value_to_add <- NA
+    }
+    
+    cohort_cumulative_normalized[cohort_cumulative_normalized$first_order_month == cohort_date, as.character(i)] <- value_to_add
+  }
+}
+
+# Rename column "0" to something more descriptive
+#names(cohort_cumulative)[names(cohort_cumulative) == "0"] <- "total_customers"
+
+# spot check
+print(cohort_cumulative_normalized)
 ```
 
 ```{r}

@@ -122,8 +122,6 @@ cohort_count <- sales_orders |>
 
 cohort_count$first_order_month <- format(cohort_count$first_order_month, "%Y-%b")
 
-#spot check
-cohort_count
 
 ```
 
@@ -285,7 +283,49 @@ all_cohorts
 ```
 
 ```{r}
+library(dplyr)
+library(lubridate)
 
+replace_na_by_month <- function(df) {
+  # Get the column names that are numeric (excluding first_order_month)
+  num_cols <- names(df)[names(df) != "first_order_month"]
+  
+  # Iterate through these columns
+  for (col in num_cols) {
+    month_index <- as.numeric(col) - 1
+    
+    df[[col]] <- mapply(function(value, first_order_month) {
+      # Skip if first_order_month is NA
+      if (is.na(first_order_month)) {
+        return(value)
+      }
+      
+      # Explicitly parse the date with a specific format
+      first_order_date <- as.Date(paste0(first_order_month, "-01"), format = "%Y-%b-%d")
+      
+      # Calculate the target date
+      target_date <- first_order_date + months(month_index)
+      
+      # Replace NA with 0 if target_date is before or equal to November 2024
+      if (target_date <= as.Date("2024-11-01")) {
+        return(replace_na(value, 0))
+      } else {
+        return(value)
+      }
+    }, df[[col]], df$first_order_month)
+  }
+  
+  return(df)
+}
+
+# Apply the function
+cohort_count_filled <- cohort_count |>
+  ungroup() |>
+  replace_na_by_month()
+
+cohort_count_filled
+
+#write.csv(cohort_count_filled, "cohort_count_filled.csv", row.names = FALSE)
 ```
 
 

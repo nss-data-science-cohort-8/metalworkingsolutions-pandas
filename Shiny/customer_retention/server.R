@@ -149,7 +149,7 @@ function(input, output, session) {
       
       labs(
         title = "New Customers by Month in 2024",
-        subtitle = "Average of 2.9 new customers per Month",
+        subtitle = "Average of 2.2 new customers per Month",
         x = " ",
         y = "New Customers",
         caption = "Data Source: Sales Orders"

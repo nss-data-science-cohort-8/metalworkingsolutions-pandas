@@ -1,7 +1,10 @@
 --a. Which customers have the highest volume of jobs? Which generate the most revenue (as indicated by the omp_order_subtotal_base in the sales_order table)?
 SELECT * 
-FROM sales_orders
-LIMIT 25;
+FROM jobs
+
+
+SELECT * 
+FROM job_operations_2024
 
 
 SELECT 
@@ -37,6 +40,43 @@ ORDER BY "2024" DESC;
 
 --c. How has the customer base changed over time? 
 --What percentage of jobs are for new customers compared to repeat customers?
+
+WITH combined_jobs AS (
+    SELECT * 
+    FROM job_operations_2023
+    UNION ALL
+    SELECT * 
+    FROM job_operations_2024
+)
+SELECT jmo_job_id, 
+       SUM(jmo_completed_production_hours) AS completed_hours, 
+       SUM(jmo_estimated_production_hours) AS estimated_hours
+FROM combined_jobs
+GROUP BY jmo_job_id
+LIMIT 5;
+
+WITH combined_jobs AS (
+    SELECT 
+        jmo_job_id,
+        CAST(jmo_completed_production_hours AS double precision) AS jmo_completed_production_hours,
+        CAST(jmo_estimated_production_hours AS double precision) AS jmo_estimated_production_hours
+    FROM job_operations_2023
+    UNION ALL
+    SELECT 
+        jmo_job_id,
+        CAST(jmo_completed_production_hours AS double precision) AS jmo_completed_production_hours,
+        CAST(jmo_estimated_production_hours AS double precision) AS jmo_estimated_production_hours
+    FROM job_operations_2024
+)
+SELECT 
+	   jmo_job_id,
+	   jobs.jmp_customer_organization_id AS customer_id,
+       SUM(jmo_completed_production_hours) AS completed_hours, 
+       SUM(jmo_estimated_production_hours) AS estimated_hours
+FROM combined_jobs
+LEFT JOIN jobs ON combined_jobs.jmo_job_id = jobs.jmp_job_id
+GROUP BY jmo_job_id, jobs.jmp_customer_organization_id
+LIMIT 5;
 
 
 
