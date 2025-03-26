@@ -1,4 +1,3 @@
-
 ui <- page_navbar(
   bg = "#1E2127",
   nav_panel("Andrew", icon = icon("house"), p(
@@ -56,12 +55,28 @@ ui <- page_navbar(
     )
   )),
   nav_panel("Dollada",
-            icon = icon("calculator"),
-            navset_card_underline(title = "What we learned")
+    icon = icon("calculator"),
+    navset_card_underline(
+      title = "New Customer Analysis Dashboard",
+      selectInput("chart_type", "Select Chart:",
+        choices = c(
+          "First-Time Customer Acquisition (Jan 2023 – Nov 2024)",
+          "Percentage of New and Existing Customers per Month",
+          "Top 10 Ordered Parts by New Customers (2023-2024)",
+          "Top 10 Ordered Parts by Existing Customers (2023-2024)",
+          "Proportion of One-Time Buyers vs Repeated Customers and Ordered Parts",
+          "Production Hours vs. Earnings: Spotlight on Top 4 Revenue Companies"
+        ),
+        # width = 2
+      ),
+    ),
+    nav_panel(
+      uiOutput("selected_chart"),
+      # width = 10
+    )
   ),
   nav_panel("Gracie",
-            icon = icon("calculator"),
-            navset_card_underline(title = "What we learned")
+    icon = icon("calculator"),
+    navset_card_underline(title = "What we learned")
   )
 )
-
