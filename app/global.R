@@ -119,7 +119,6 @@ jobs <- dbFetch(result_set)
 dbClearResult(result_set)
 
 
-
 top_20_jobs <- jobs |>
   filter(customer_id %in% top20_customers_total$customer_id) |>
   group_by(customer_id) |>
@@ -136,7 +135,6 @@ complex_orders <- jobs |>
   group_by(customer_id, order_id) |>
   summarise(jobs_per_order = n_distinct(job_id), .groups = "drop") |>
   arrange(desc(jobs_per_order), customer_id)
-
 
 
 top_20_total_jobs <- jobs |>
@@ -200,19 +198,9 @@ complex_orders_avg <- jobs |>
 
 # JEFF ----------------------------------------------
 
-# Original App for EDA
-# Database
-con <- dbConnect(Postgres(),                
-                 dbname = 'metalworking',
-                 host = 'localhost',    
-                 port = 5432, 
-                 user = 'postgres',
-                 password = rstudioapi::askForPassword("Database password"))
-
-
 # Access Sales Orders
-so_query <-"
-SELECT 
+so_query <- "
+SELECT
 	omp_sales_order_id AS sales_order_number,
 	omp_customer_organization_id AS customer_id,
 	omp_order_date order_date,
@@ -225,11 +213,9 @@ SELECT
 FROM sales_orders;
 "
 # Create the Cohort_Count Table
-
 so_query_result <- dbGetQuery(con, so_query)
 
 so_query_result$order_date <- as.Date(so_query_result$order_date, format = "%Y-%m")
-
 
 # FILL NA FUNCTION
 
@@ -277,6 +263,7 @@ sales_orders <- so_query_result |>
   left_join(customer_cohort, by = "customer_id") |> 
   mutate(
     months_since_first_order = floor(interval(first_order_month, order_date) / months(1))
+
   )
 
 cohort_count <- sales_orders |>
@@ -300,8 +287,10 @@ print(cohort_count)
 cohort_count_pct <- cohort_count |>
   mutate(across(as.character(1:22), ~ round((.x / `0`) * 100, 1), .names = "{.col}"))
 
+
 # spot check
 print(cohort_count_pct)
+
 
 
 #COHORT CUMULATIVE
@@ -310,6 +299,7 @@ print(cohort_count_pct)
 all_cohorts <- sales_orders |> 
   distinct(first_order_month) |> 
   arrange(first_order_month) |> 
+
   pull(first_order_month)
 
 # create empty tibble
@@ -318,6 +308,7 @@ cohort_cumulative <- data.frame(first_order_month = all_cohorts)
 # loop through each cohort
 for (cohort_date in all_cohorts) {
   # Filter data for this cohort
+
   cohort_data <- sales_orders |> 
     filter(first_order_month == cohort_date)
   
@@ -347,6 +338,7 @@ print(cohort_cumulative)
 
 #COHORT CUMULATIVE NORMALIZED
 
+
 # create empty tibble
 cohort_cumulative_pct <- data.frame(first_order_month = all_cohorts)
 
@@ -373,10 +365,11 @@ for (cohort_date in all_cohorts) {
       summarise(customer_count = n_distinct(customer_id)) |> 
       pull(customer_count)
     
-    # percentage of grand total
+and total
     if (initial_count > 0) {
       percentage <- round((count_customers / initial_count) * 100, 1)
       # add to table, replacing 0 with NA
+
       value_to_add <- if(percentage == 0) NA else percentage
     } else {
       value_to_add <- NA
@@ -408,6 +401,7 @@ customers_month_2024 <- customers_month |>
 unique_customers <- customers_month_2024 |> 
   group_by(order_month) |> 
   summarise(new_customers = n_distinct(customer_id)) |> 
+
   mutate(
     simple_average = sum(new_customers) / n()
   )
@@ -434,6 +428,7 @@ new_customers_df <- new_customers_df |>
 new_groupby <- new_customers_df |> 
   group_by(first_purchase_month) |> 
   summarise(customer_count = n_distinct(customer_id)) |> 
+
   arrange(first_purchase_month)
 
 new_groupby_filtered <- new_groupby %>%
@@ -448,6 +443,4 @@ new_groupby_filtered <- new_groupby_filtered |>
   mutate(simple_avg = mean(customer_count))
 
 #spot check
-
 print(new_groupby_filtered)
-

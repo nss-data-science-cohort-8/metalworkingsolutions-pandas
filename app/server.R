@@ -1,13 +1,4 @@
-#
-# This is the server logic of a Shiny web application. You can run the
-# application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    https://shiny.posit.co/
-#
 
-# nolint start
 server <- function(input, output, session) {
   # Render the dynamic sidebar with year selector
   output$dynamic_sidebar <- renderUI({
@@ -17,23 +8,25 @@ server <- function(input, output, session) {
       choices = c("2023", "2024", "2023 & 2024")
     )
   })
-  
+
+=======
+
   # Reactive dataset based on year selection
   filtered_data <- reactive({
     req(input$year_selector)
-    
+
     customer_filter <- switch(input$year_selector,
-                              "2023" = top20_customers_2023$customer_id,
-                              "2024" = top20_customers_2024$customer_id,
-                              "2023 & 2024" = top20_customers_total$customer_id
+      "2023" = top20_customers_2023$customer_id,
+      "2024" = top20_customers_2024$customer_id,
+      "2023 & 2024" = top20_customers_total$customer_id
     )
-    
+
     year_filter <- switch(input$year_selector,
-                          "2023" = 2023,
-                          "2024" = 2024,
-                          "2023 & 2024" = c(2023, 2024)
+      "2023" = 2023,
+      "2024" = 2024,
+      "2023 & 2024" = c(2023, 2024)
     )
-    
+
     customers |>
       select(
         omp_order_date,
@@ -56,7 +49,7 @@ server <- function(input, output, session) {
       summarise(generated_revenue = sum(generated_revenue), .groups = "drop") |>
       mutate(customer_id = factor(customer_id, levels = customer_filter))
   })
-  
+
   # Render the seasonal trends plot
   output$seasonal <- renderPlotly({
     plot_data <- filtered_data()
@@ -65,24 +58,24 @@ server <- function(input, output, session) {
         nrow(plot_data) > 0, "No data available for the selected year(s)."
       )
     )
-    
+
     x_axis <- if (input$year_selector == "2023 & 2024") {
       aes(x = make_date(year, month))
     } else {
       aes(x = month)
     }
-    
+
     plot_title <- paste(
       "Change in Customer Generated Revenue -",
       input$year_selector
     )
-    
+
     p <- ggplot(plot_data, x_axis) +
       geom_line(aes(y = generated_revenue, color = customer_id)) +
       labs(title = plot_title, x = "Month", y = "Revenue ($)") +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 55, hjust = 1))
-    
+
     if (input$year_selector == "2023 & 2024") {
       p <- p + scale_x_date(date_breaks = "1 month", date_labels = "%b %Y")
     } else {
@@ -91,14 +84,14 @@ server <- function(input, output, session) {
         labels = month.name
       )
     }
-    
+
     ggplotly(p)
   })
-  
+
   # Render the "Jobs by Month" plot
   output$jobs_by_month <- renderPlotly({
     validate(need(exists("jobs"), "Jobs dataset is missing."))
-    
+
     p4 <- jobs |>
       filter(customer_id %in% top20_customers_total$customer_id) |>
       mutate(
@@ -128,39 +121,38 @@ server <- function(input, output, session) {
       ) +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
-    
+
     ggplotly(p4, tooltip = "text")
   })
-  
+
   filtered_data2 <- reactive({
     req(input$year_selector) # Ensure input is available
-    
+
     selected_data <- switch(input$year_selector,
-                            "2023" = customer_revenue_23,
-                            "2024" = customer_revenue_24,
-                            "2023 & 2024" = customer_revenue_total
+      "2023" = customer_revenue_23,
+      "2024" = customer_revenue_24,
+      "2023 & 2024" = customer_revenue_total
     )
-    
+
     selected_data |>
       head(20)
   })
-  
+
   # Render the appropriate revenue plot based on year selection
   output$revenue <- renderPlotly({
     plot_data <- filtered_data2()
-    
+
     # Validate input data to avoid errors
     validate(
       need(nrow(plot_data) > 0, "No data available for the selected year(s).")
     )
-    
-    
+
     # Dynamic title based on year selection
     plot_title <- paste(
       "Customer Revenue by Year -",
       input$year_selector
     )
-    
+
     p <- ggplot(
       plot_data,
       aes(
@@ -188,27 +180,27 @@ server <- function(input, output, session) {
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
       )
-    
+
     ggplotly(p, tooltip = "text")
   })
   # Render the "Job Complexity" plots
   filtered_data3 <- reactive({
     req(input$jobselect)
     switch(input$jobselect,
-           "Jobs per customer" = top_20_jobs,
-           "Big Spenders SOs" = complex_orders,
-           "Other Customers SOs" = top_20_total_jobs,
-           "Avg. Jobs per SO" = complex_orders_avg
+      "Jobs per customer" = top_20_jobs,
+      "Big Spenders SOs" = complex_orders,
+      "Other Customers SOs" = top_20_total_jobs,
+      "Avg. Jobs per SO" = complex_orders_avg
     )
   })
-  
+
   # Render the complexity plot
   output$complexity <- renderPlotly({
     plot_data3 <- filtered_data3()
     validate(need(nrow(plot_data3) > 0, "No data available for the selection."))
-    
+
     plot_title <- paste("Order Complexity -", input$jobselect)
-    
+
     if (input$jobselect == "Jobs per customer") {
       p1 <- ggplot(
         plot_data3,
@@ -394,6 +386,7 @@ server <- function(input, output, session) {
             var endCol = 24;   
             var rowValues = [];
             
+
             // Collect values from columns to be colored
             for (var i = startCol; i <= endCol; i++) {
               if (data[i] !== null && data[i] !== '') {
@@ -411,17 +404,17 @@ server <- function(input, output, session) {
               // Apply color gradient from red to green
               rowValues.forEach(function(item) {
                 if (minVal === maxVal) return; // Skip coloring if all values are the same
-                
+
                 var ratio = (item.value - minVal) / (maxVal - minVal);
                 var red = Math.round(255 * (1 - ratio));
                 var green = Math.round(255 * ratio);
                 var color = 'rgb(' + red + ',' + green + ',0)';
-                
                 $('td:eq(' + item.index + ')', row).css('background-color', color);
               });
             }
           }
         ")
+
         )
       )
     })

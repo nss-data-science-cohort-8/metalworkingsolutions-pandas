@@ -1,0 +1,126 @@
+---
+title: "metalworkingsolutions-pandas"
+output: html_notebook
+---
+1. Do an analysis of customers. The customer can be identified using the jmp_customer_organization_id from the jobs table or the omp_customer_organization_id from the sales_orders table. Here are some example questions to get started:  
+    a. Which customers have the highest volume of jobs? Which generate the most revenue (as indicated by the omp_order_subtotal_base in the sales_order table)?  
+    b. How has the volume of work changed for each customer over time? Are there any seasonal patterns? How have the number of estimated hours per customer changed over time? Estimated hours are in the jmo_estimated_production_hours columns of the job_operations_2023/job_operations_2024 tables.  
+    c. How has the customer base changed over time? What percentage of jobs are for new customers compared to repeat customers?  
+    d. Perform a breakdown of customers by operation (as indicated by the jmo_process short_description in the job_operations_2023 or job_operations_2024 table).** */
+
+Import libraries
+```{r}
+library(DBI) # not postgres specific
+library(RPostgres) # gives us the postgres driver
+library(tidyverse)
+```
+
+Create connection
+```{r}
+connection <- dbConnect(
+  Postgres(), # Use the postgres driver # nolint
+  dbname = "metalworkingsolutions", # Name of the database we want to connect to
+  host = "localhost",
+  port = 5432,
+  user = "postgres",
+  password = Sys.getenv("DB_PASSWORD")
+  # password = rstudioapi::askForPassword("Database password")
+  )
+```
+
+list tables in database
+ `dbListTables(connection)`
+
+List all fields in a table
+`dbListFields(connection, 'jobs')`
+
+**b. How has the volume of work changed for each customer over time? Are there any seasonal patterns? How have the number of estimated hours per customer changed over time? Estimated hours are in the jmo_estimated_production_hours columns of the job_operations_2023/job_operations_2024 tables.**
+
+```{r}
+query <- "SELECT * FROM job_operations_2023"
+result_set <- dbSendQuery(connection, query)
+```
+
+```{r}
+job_operations_2023 <- dbFetch(result_set)
+dbListFields(connection, "job_operations_2023")
+dbClearResult(result_set)
+```
+
+```{r}
+query <- "SELECT
+    jmo_job_id,
+    date_trunc('week', jmo_created_date) AS week,
+    SUM(jmo_estimated_production_hours) AS total_estimated_hours
+    FROM job_operations_2023
+    GROUP BY jmo_job_id, date_trunc('week', jmo_created_date)
+    ORDER BY week;"
+result_set <- dbSendQuery(connection, query)
+job_ops_23_slimmed <- dbFetch(result_set)
+dbClearResult(result_set)
+job_ops_23_slimmed
+```
+
+
+
+Create query
+```{r}
+query <- "SELECT
+    date_trunc('week', jmo_created_date) AS week,
+    SUM(jmo_estimated_production_hours) AS jmo_estimated_production_hours
+    FROM job_operations_2023
+    GROUP BY date_trunc('week', jmo_created_date)
+    ORDER BY week;"
+result_set <- dbSendQuery(connection, query)
+
+```
+
+
+```{r}
+jobs_volume_hours <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+
+
+
+Plot jobs_volume_hours
+```{r}
+jobs_volume_hours |>
+  ggplot(aes(x = week, y = jmo_estimated_production_hours)) +
+  geom_col(fill = "#ff8200") +
+  labs(title = "Total production hours / week",
+       x = "Week",
+       y = "Estimated production hours") +
+  theme_minimal()
+```
+
+```{r}
+
+query <- "SELECT
+    EXTRACT(MONTH FROM jmo_created_date) AS month,
+    SUM(jmo_estimated_production_hours) AS jmo_estimated_production_hours
+    FROM job_operations_2023
+    GROUP BY jmo_created_date, date_trunc('month', jmo_created_date)
+    ORDER BY month;"
+result_set <- dbSendQuery(connection, query)
+```
+
+```{r}
+jobs_volume_hours_month <- dbFetch(result_set)
+dbClearResult(result_set)
+```
+
+```{r}
+jobs_volume_hours_month |>
+  ggplot(aes(x = month, y = jmo_estimated_production_hours)) +
+  geom_col(fill = "#ff8200") +
+  labs(title = "Total production hours / month",
+       x = "Month",
+       y = "Estimated production hours") +
+  theme_minimal()
+```
+
+
+
+
