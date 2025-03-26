@@ -542,13 +542,13 @@ server <- function(input, output, session) {
       output$selected_chart <- renderUI({
         fluidRow(
           column(
-            width = 7,
+            width = 9,
             tags$img(src = "first_time_buyer_part_2023.jpg", style = "width:100%; max-height:380px; height:auto;"),
             tags$br(), tags$br(),
-            tags$img(src = "fist_time_buyer_parts.jpg_2024.jpg", style = "width:100%; max-height:380px; height:auto")
+            tags$img(src = "fist_time_buyer_parts_2024.jpg", style = "width:100%; max-height:380px; height:auto")
           ),
           column(
-            width = 5,
+            width = 3,
             tags$div(
               tags$h4("Insights on Top Ordered Parts by New Customers (2023 vs. 2024)"),
               tags$ul(
@@ -605,8 +605,8 @@ server <- function(input, output, session) {
       })
 
       output$parts_table <- DT::renderDataTable({
-        req(file.exists("one_time_buyer_name_what_they_order.xlsx"))
-        parts_data <- readxl::read_excel("one_time_buyer_name_what_they_order.xlsx")
+        req(file.exists("one_time_buyer_name_what_they_order.csv"))
+        parts_data <- read_csv("one_time_buyer_name_what_they_order.csv")
         DT::datatable(parts_data, options = list(pageLength = 5, autoWidth = TRUE))
       })
 

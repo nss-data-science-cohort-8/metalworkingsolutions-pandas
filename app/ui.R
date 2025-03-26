@@ -1,6 +1,9 @@
 ui <- page_navbar(
   bg = "#1E2127",
-  nav_panel("Andrew", icon = icon("house"), p(
+
+  # Andrew's Tab
+  nav_panel("Andrew",
+    icon = icon("house"),
     page_sidebar(
       sidebar = sidebar(
         uiOutput("dynamic_sidebar"),
@@ -8,18 +11,21 @@ ui <- page_navbar(
       ),
       navset_card_underline(
         title = "Customer Analysis",
-        nav_panel("Revenue", icon = icon("dollar-sign"), p(
+        nav_panel("Revenue",
+          icon = icon("dollar-sign"),
           plotlyOutput("revenue")
-        )),
-        nav_panel("Seasonal Trends", icon = icon("icicles"), p(
+        ),
+        nav_panel("Seasonal Trends",
+          icon = icon("icicles"),
           plotlyOutput("seasonal"),
           hr(),
           conditionalPanel(
             condition = "input.year_selector === '2023 & 2024'",
             plotlyOutput("jobs_by_month")
           )
-        )),
-        nav_panel("Order Complexity", icon = icon("chart-simple"), p(
+        ),
+        nav_panel("Order Complexity",
+          icon = icon("chart-simple"),
           selectInput("jobselect", "Select Jobs Analysis", choices = c(
             "Jobs per customer",
             "Big Spenders SOs",
@@ -27,20 +33,26 @@ ui <- page_navbar(
             "Avg. Jobs per SO"
           ), selected = "Jobs per customer"),
           plotlyOutput("complexity")
-        ))
+        )
       )
     )
-  )),
-  nav_panel("Jeff", icon = icon("chart-line"), p(
+  ),
+
+  # Jeff's Tab
+  nav_panel("Jeff",
+    icon = icon("chart-line"),
     navset_card_underline(
       title = "Customer Retention",
-      nav_panel("Plot1", icon = icon("chart-line"), p(
+      nav_panel("Plot1",
+        icon = icon("chart-line"),
         plotOutput("customerPlot")
-      )),
-      nav_panel("Plot2", icon = icon("chart-line"), p(
+      ),
+      nav_panel("Plot2",
+        icon = icon("chart-line"),
         plotOutput("customerPlot_2")
-      )),
-      nav_panel("Table", icon = icon("chart-simple"), p(
+      ),
+      nav_panel("Table",
+        icon = icon("chart-simple"),
         div(
           style = "width: 100%; overflow-x: auto;",
           selectInput("tableChoice", "Choose a table:", choices = c(
@@ -51,13 +63,14 @@ ui <- page_navbar(
           ), selected = "cohort_count", width = "200px"),
           DTOutput("cohortTable")
         )
-      ))
+      )
     )
-  )),
+  ),
+
+  # Dollada's Tab
   nav_panel("Dollada",
     icon = icon("calculator"),
-    navset_card_underline(
-      title = "New Customer Analysis Dashboard",
+    page_sidebar(
       selectInput("chart_type", "Select Chart:",
         choices = c(
           "First-Time Customer Acquisition (Jan 2023 – Nov 2024)",
@@ -66,17 +79,26 @@ ui <- page_navbar(
           "Top 10 Ordered Parts by Existing Customers (2023-2024)",
           "Proportion of One-Time Buyers vs Repeated Customers and Ordered Parts",
           "Production Hours vs. Earnings: Spotlight on Top 4 Revenue Companies"
-        ),
-        # width = 2
+        )
       ),
-    ),
-    nav_panel(
-      uiOutput("selected_chart"),
-      # width = 10
+      sidebar = sidebar(
+        hr()
+      ),
+      navset_card_underline(
+        title = "New Customer Analysis Dashboard",
+        nav_panel(
+          "Charts!",
+          uiOutput("selected_chart")
+        ),
+      )
     )
   ),
+
+  # Gracie's Tab
   nav_panel("Gracie",
     icon = icon("calculator"),
-    navset_card_underline(title = "What we learned")
+    navset_card_underline(
+      title = "What we learned"
+    )
   )
 )
