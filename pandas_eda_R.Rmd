@@ -1,0 +1,522 @@
+---
+title: "R Pandas EDA"
+output: html_notebook
+---
+
+### 
+
+
+
+
+### 
+Packages
+```{r}
+
+library(DBI)
+#install.packages("RPostgres")
+#install.packages("readxl")  # Only if 'readxl' is not already installed
+#install.packages("reactable")
+library(reactable)
+library(readxl)
+library(RPostgres)
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(dbplyr)
+library(ggplot2)
+```
+
+Connect to Database
+```{r}
+con <- dbConnect(Postgres(),                
+                 dbname = 'metalworking',
+                 host = 'localhost',    
+                 port = 5432, 
+                 user = 'postgres',
+                 password = rstudioapi::askForPassword("Database password"))
+```
+
+List Tables in Database
+```{r}
+dbListTables(con)
+```
+
+
+Jobs Tibble
+```{r}
+jobs_tbl <- tbl(con, "jobs")
+jobs_tibble <- jobs_tbl |> collect()
+jobs_tibble
+```
+
+
+
+
+Sales Order Tibble
+```{r}
+so_tbl <- tbl(con, "sales_orders")
+so_tibble <- so_tbl |> collect()
+so_tibble
+```
+
+Job Operations 2024
+```{r}
+jo_2024_tbl <- tbl(con, "job_operations_2024")
+jo_2024_tibble <- jo_2024_tbl |> collect()
+jo_2024_tibble
+```
+
+Testing Query in R
+```{r}
+query_1a <- "
+SELECT 
+    omp_customer_organization_id AS customer_id,
+    COUNT(omp_sales_order_id) AS order_count,
+    ROUND(SUM(omp_full_order_subtotal_base)::numeric, 2) AS subtotal
+FROM sales_orders
+GROUP BY omp_customer_organization_id
+ORDER BY subtotal DESC;
+"
+
+# Run the query and store the result in a data frame
+query_result_1a <- dbGetQuery(con, query_1a)
+query_result_1a
+
+```
+
+Testing 1b
+```{r}
+query_1b <- "
+SELECT 
+    omp_customer_organization_id AS customer_id,
+    COUNT(omp_sales_order_id) AS order_count,
+    ROUND(SUM(omp_full_order_subtotal_base)::numeric, 2) AS subtotal
+FROM sales_orders
+GROUP BY omp_customer_organization_id
+ORDER BY subtotal DESC;
+"
+
+# Run the query and store the result in a data frame
+query_result_1b <- dbGetQuery(con, query_1b)
+query_result_1b
+```
+
+sales_order table query
+```{r}
+so_query <-"
+SELECT 
+	omp_sales_order_id AS sales_order_number,
+	omp_customer_organization_id AS customer_id,
+	omp_order_date order_date,
+	omp_shipping_method_id AS shipping_method,
+	omp_payment_term_id AS terms,
+	omp_created_from_web AS web_order,
+	omp_full_order_subtotal_base AS subtotal,
+	omp_order_total_base AS total,
+	omp_total_order_weight AS order_weight
+FROM sales_orders;
+"
+so_query_result <- dbGetQuery(con, so_query)
+so_query_result
+
+```
+
+
+```{r}
+#write_csv(so_query_result, "sales_orders.csv")
+
+```
+
+
+sales_order_line table query
+```{r}
+sol_query <-"
+SELECT 
+	oml_sales_order_id AS sales_order_number,
+	oml_unit_of_measure AS uom,
+	oml_part_group_id AS part_group,
+	oml_part_short_description AS short_description,
+	oml_part_long_description_text AS long_description,
+	oml_order_quantity AS order_quantity,
+	oml_quantity_shipped AS quantity_shipped,
+	oml_full_unit_price_base AS base_price,
+	oml_full_extended_price_base AS extended_price
+FROM sales_order_lines;
+"
+
+sol_query_result <- dbGetQuery(con, sol_query)
+sol_query_result
+```
+
+
+```{r}
+write_csv(sol_query_result, "sales_order_lines.csv")
+```
+
+jobs table query
+```{r}
+jobs_query <-"
+SELECT 
+	jmp_job_id AS job_id,
+	jmp_production_due_date AS due_date,
+	jmp_job_date AS job_date,
+	jmp_customer_organization_id AS customer_id,
+	jmp_part_id AS part_id,
+	jmp_part_ware_house_location_id AS warehouse_location,
+	jmp_unit_of_measure AS uom,
+	jmp_part_short_description AS short_description,
+	jmp_part_long_description_text AS long_description,
+	jmp_order_quantity AS order_quantity,
+	jmp_production_quantity AS production_quantity,
+	jmp_quantity_shipped AS quantity_shipped,
+	jmp_job_priority_id AS priority,
+	jmp_source_method_id AS source_method
+FROM jobs;
+"
+
+jobs_query_result <- dbGetQuery(con, jobs_query)
+jobs_query_result
+
+```
+
+8. 
+```{r}
+shipments_query <-"
+SELECT 	
+	smp_shipment_id AS shipment_id,
+	smp_ship_date AS shipment_date,
+	smp_customer_organization_id AS customer_id,
+	smp_shipment_subtotal AS subtotal,
+	smp_shipment_total AS total
+FROM shipments;
+"
+shipments_query_result <- dbGetQuery(con, shipments_query)
+shipments_query_result
+```
+
+9. 
+```{r}
+job_ops_24_query <-"
+SELECT 
+	jmo_job_id AS job_id,
+	jmo_plant_id AS plant_id,
+	jmo_work_center_id AS work_center,
+	jmo_process_id AS process,
+	jmo_process_short_description as short_description,
+	jmo_queue_time AS queue_time,
+	jmo_setup_hours AS setup_hours,
+	jmo_production_standard AS production_standard,
+	jmo_quantity_complete AS quantity_complete,
+	jmo_actual_setup_hours AS setup_hours,
+	jmo_actual_production_hours AS actual_production_hours,
+	jmo_estimated_production_hours AS estimated_production_hours,
+	jmo_completed_production_hours AS completed_production_hours
+FROM job_operations_2024;
+"
+job_ops_24_query_result <- dbGetQuery(con, job_ops_24_query)
+job_ops_24_query_result
+```
+
+
+```{r}
+job_ops_23_query <-"
+SELECT 
+	jmo_job_id AS job_id,
+	jmo_plant_id AS plant_id,
+	jmo_work_center_id AS work_center,
+	jmo_process_id AS process,
+	jmo_process_short_description as short_description,
+	jmo_queue_time AS queue_time,
+	jmo_setup_hours AS setup_hours,
+	jmo_production_standard AS production_standard,
+	jmo_quantity_complete AS quantity_complete,
+	jmo_actual_setup_hours AS setup_hours,
+	jmo_actual_production_hours AS actual_production_hours,
+	jmo_estimated_production_hours AS estimated_production_hours,
+	jmo_completed_production_hours AS completed_production_hours
+FROM job_operations_2023;
+"
+job_ops_23_query_result <- dbGetQuery(con, job_ops_23_query)
+job_ops_23_query_result
+
+```
+
+10. 
+
+
+```{r}
+so_jl_query <-"
+SELECT *
+FROM sales_order_job_links;
+"
+so_jl_query_result <- dbGetQuery(con, so_jl_query)
+so_jl_query_result
+```
+
+
+
+```{r}
+
+```
+
+
+
+Which customers have the highest volume of jobs ?
+```{r}
+jobs_by_customer <- jobs_query_result |> 
+  group_by(customer_id) |> 
+  summarize(
+    count_of_job_id = n(),  
+    sum_of_quantity_shipped = sum(quantity_shipped, na.rm = TRUE) 
+  ) |> 
+  arrange(desc(count_of_job_id)) |> 
+  mutate(
+    percent_of_total = (count_of_job_id / sum(count_of_job_id)) * 100 
+  )
+
+
+jobs_by_customer
+
+```
+
+
+
+which customers generate the most revenue?
+```{r}
+revenue_by_customer <- shipments_query_result |> 
+  group_by(customer_id) |> 
+  summarize(
+    sum_of_revenue = sum(total, na.rm = TRUE) 
+  ) |> 
+  arrange(desc(sum_of_revenue)) |> 
+  mutate(
+    percent_of_total = (sum_of_revenue / sum(sum_of_revenue)) * 100 
+  )
+
+
+revenue_by_customer
+```
+
+
+
+customer changes
+```{r}
+customers_month <- so_query_result |> 
+  mutate(order_month = floor_date(order_date, "month"))
+customers_month
+```
+
+
+```{r}
+
+customers_month <- so_query_result |> 
+  mutate(order_month = floor_date(order_date, "month"))
+
+unique_customers <- customers_month |> 
+  group_by(order_month) |> 
+  summarise(new_customers = n_distinct(customer_id)) |> 
+  mutate(
+    # Calculate the simple average by dividing total new customers by row count
+    simple_average = sum(new_customers) / n()
+  )
+
+# View the updated customer_activity data frame
+unique_customers
+
+
+
+library(ggplot2)
+
+# Convert 'order_month' to Date (keeping only the year-month information)
+unique_customers$order_month <- as.Date(format(unique_customers$order_month, "%Y-%m-01"))
+
+
+
+# Plot the data and add the simple average line
+ggplot(unique_customers, aes(x = order_month, y = new_customers)) +
+  geom_line(color = "#0073C2FF", size = 1.2) +  # Color the line and increase size
+  geom_point(color = "#D55E00", size = 3) +      # Add red points on the line for emphasis
+  geom_hline(aes(yintercept = simple_average[1]), 
+             color = "orange", 
+             linetype = "dotted", 
+             size = 1) +  # Add simple average line (dotted and orange)
+  labs(
+    title = "Unique Customers by Month",              # Title
+    subtitle = "Tracking customer growth over time", # Optional subtitle
+    x = " ",                                  # X-axis label
+    y = "Unique Customers",                          # Y-axis label
+    caption = "Data Source: Sales Orders"     # Optional caption
+  ) +
+  theme_minimal() +                               # Clean and minimal theme
+  scale_x_date(date_labels = "%b %Y", date_breaks = "1 month") + # Date formatting
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels for readability
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  # Title style
+    plot.subtitle = element_text(hjust = 0.5, size = 12, face = "italic"), # Subtitle style
+    plot.caption = element_text(hjust = 1, size = 10, face = "italic")   # Caption style
+  )
+
+
+
+```
+
+
+```{r}
+customer_cohort_df <- customers_month |> 
+  group_by(customer_id) |> 
+  mutate(first_purchase = min(order_date)) |> 
+  ungroup()  
+
+# first purchase month
+customer_cohort_df <- customer_cohort_df |> 
+  mutate(first_purchase_month = floor_date(first_purchase, "month"))
+
+# first p month group by
+cohort_groupby <- customer_cohort_df |> 
+  group_by(first_purchase_month) |> 
+  summarise(customers_in_cohort = n_distinct(customer_id)) |> 
+  arrange(first_purchase_month)
+
+cohort_groupby
+
+```
+
+
+
+
+```{r}
+
+customer_order_summary <- customer_cohort_df |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    days_between = as.numeric(difftime(max(order_date), min(order_date), units = "days"))
+  ) %>%
+  ungroup()  
+
+
+avg_days_all_customers <- mean(customer_order_summary$days_between, na.rm = TRUE)
+
+
+customer_order_summary <- customer_order_summary |> 
+  mutate(avg_days_diff = avg_days_all_customers)
+
+
+customer_order_summary
+
+```
+
+```{r}
+library(dplyr)
+library(lubridate)
+
+customer_order_summary <- customer_cohort_df |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    days_between = as.numeric(difftime(max(order_date), min(order_date), units = "days"))
+  ) %>%
+  ungroup()  
+
+
+avg_days_all_customers <- mean(customer_order_summary$days_between, na.rm = TRUE)
+
+
+customer_order_summary <- customer_order_summary |> 
+  mutate(avg_days_diff = avg_days_all_customers)
+
+# Set the cutoff date for churn (e.g., 60 days ago)
+cutoff_date <- Sys.Date() - 60
+
+# Summarize customer data with first and last order dates, and retention period (days between)
+customer_order_summary <- customer_cohort_df |> 
+  group_by(customer_id) |> 
+  summarise(
+    first_order_date = min(order_date),      
+    last_order_date = max(order_date),       
+    retention_period = as.numeric(difftime(max(order_date), min(order_date), units = "days"))  # Retention period (days between first and last order)
+  ) %>%
+  ungroup()  
+
+# Identify churned customers based on the cutoff date
+churned_customers <- customer_order_summary %>%
+  filter(last_order_date < cutoff_date)  # Customers who haven't purchased in the last 60 days
+
+# Calculate churn rate
+churn_rate <- nrow(churned_customers) / nrow(customer_order_summary) * 100
+
+# Display the churn rate
+churned_customers
+
+```
+
+```{r}
+
+cohort_count <- read_excel("../metalworkingsolutions-pandas/read_cohort_count.xlsx")
+cohort_count
+```
+
+```{r}
+library(dplyr)
+
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+
+
+# Create a reactable table with conditional formatting for each row starting from column '1'
+reactable(cohort_count, 
+          columns = setNames(
+            lapply(4:ncol(cohort_count), function(i) {  # Start from column '1', so we skip '0' column
+              colDef(
+                style = function(value, index) {
+                  # Get the row for the student (index will be passed here)
+                  row <- cohort_count[index, ]
+                  
+                  # Find the min and max for the student's scores (columns 4 to the end)
+                  min_val <- min(row[4:ncol(cohort_count)], na.rm = TRUE)
+                  max_val <- max(row[4:ncol(cohort_count)], na.rm = TRUE)
+                  
+                  # Normalize the value for this student's row based on their min and max
+                  color_scale <- rescale(value, to = c(0, 1), from = c(min_val, max_val))
+                  
+                  # Define the color scale: red for low, green for high
+                  color <- col_numeric(
+                    palette = c("red", "green"), 
+                    domain = c(0, 1)
+                  )(color_scale)
+                  
+                  # Return the background color
+                  list(background = color)
+                }
+              )
+            }), 
+            colnames(cohort_count)[4:ncol(cohort_count)]  # Name columns starting from '1'
+          )
+)
+
+
+```
+
+```{r}
+
+
+
+
+```
+
+
+```
+
+```{r}
+
+```

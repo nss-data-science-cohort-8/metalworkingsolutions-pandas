@@ -11,7 +11,7 @@ library(ggrepel)
 library(shinythemes)
 library(htmltools)
 library(markdown)
-library(rmarkdown) 
+library(rmarkdown)
 library(DBI)
 library(RPostgres)
 library(formattable)
@@ -118,8 +118,6 @@ result_set <- dbSendQuery(connection, query)
 jobs <- dbFetch(result_set)
 dbClearResult(result_set)
 
-
-
 top_20_jobs <- jobs |>
   filter(customer_id %in% top20_customers_total$customer_id) |>
   group_by(customer_id) |>
@@ -136,8 +134,6 @@ complex_orders <- jobs |>
   group_by(customer_id, order_id) |>
   summarise(jobs_per_order = n_distinct(job_id), .groups = "drop") |>
   arrange(desc(jobs_per_order), customer_id)
-
-
 
 top_20_total_jobs <- jobs |>
   mutate(order_id = str_sub(job_id, 1, 5)) |>
@@ -199,8 +195,6 @@ complex_orders_avg <- jobs |>
   arrange(desc(avg_jobs_per_order), customer_id)
 
 # JEFF ----------------------------------------------
-
-
 # Access Sales Orders
 so_query <- "
 SELECT
@@ -216,7 +210,6 @@ SELECT
 FROM sales_orders;
 "
 # Create the Cohort_Count Table
-
 so_query_result <- dbGetQuery(connection, so_query)
 
 so_query_result$order_date <- as.Date(
@@ -224,20 +217,61 @@ so_query_result$order_date <- as.Date(
   format = "%Y-%m"
 )
 
+# FILL NA FUNCTION
+
+replace_na_by_month <- function(df) {
+  # find numeric columns
+  num_cols <- names(df)[names(df) != "first_order_month"]
+
+  # loop through
+  for (col in num_cols) {
+    month_index <- as.numeric(col) - 1
+
+    df[[col]] <- mapply(function(value, first_order_month) {
+      # Skip if first_order_month is NA
+      if (is.na(first_order_month)) {
+        return(value)
+      }
+
+      # parse date with column format
+      first_order_date <- as.Date(
+        paste0(
+          first_order_month,
+          "-01"
+        ),
+        format = "%Y-%b-%d"
+      )
+
+      # Calculate the target date
+      target_date <- first_order_date + months(month_index)
+
+      # replace NA with 0 if td is before or equal to November 2024
+      if (target_date <= as.Date("2024-11-01")) {
+        return(replace_na(value, 0))
+      } else {
+        return(value)
+      }
+    }, df[[col]], df$first_order_month)
+  }
+
+  return(df)
+}
+
 # CUSTOMER COHORT - CUSTOMER COUNT
 customer_cohort <- so_query_result |>
   group_by(customer_id) |>
   summarise(first_order_month = floor_date(min(order_date), "month")) |>
   ungroup()
 
-# print(customer_cohort)
+print(customer_cohort)
 
 sales_orders <- so_query_result |>
   left_join(customer_cohort, by = "customer_id") |>
   mutate(
     months_since_first_order = floor(
       interval(
-        first_order_month, order_date
+        first_order_month,
+        order_date
       ) / months(1)
     )
   )
@@ -253,8 +287,13 @@ cohort_count$first_order_month <- format(
   "%Y-%b"
 )
 
+# apply fill function
+cohort_count <- cohort_count |>
+  ungroup() |>
+  replace_na_by_month()
+
 # spot check
-# print(cohort_count)
+print(cohort_count)
 
 # CUSTOMER COHORT - NORMALIZED
 
@@ -266,6 +305,7 @@ cohort_count_pct <- cohort_count |>
       .names = "{.col}"
     )
   )
+
 
 # spot check
 print(cohort_count_pct)
@@ -285,16 +325,17 @@ cohort_cumulative <- data.frame(first_order_month = all_cohorts)
 # loop through each cohort
 for (cohort_date in all_cohorts) {
   # Filter data for this cohort
+
   cohort_data <- sales_orders |>
     filter(first_order_month == cohort_date)
-  
+
   # loop through each month (0-22)
   for (i in 0:22) {
     count_customers <- cohort_data |>
       filter(months_since_first_order >= i) |>
       summarise(customer_count = n_distinct(customer_id)) |>
       pull(customer_count)
-    
+
     # add to data frame
     value_to_add <- if (count_customers == 0) NA else count_customers
     cohort_cumulative[
@@ -304,14 +345,20 @@ for (cohort_date in all_cohorts) {
   }
 }
 
-# spot check
-# print(cohort_cumulative)
 
 cohort_cumulative$first_order_month <- format(
   cohort_cumulative$first_order_month,
   "%Y-%b"
 )
 
+
+# apply fill function
+cohort_cumulative <- cohort_cumulative |>
+  ungroup() |>
+  replace_na_by_month()
+
+# spot check
+print(cohort_cumulative)
 
 # COHORT CUMULATIVE NORMALIZED
 
@@ -323,19 +370,19 @@ for (cohort_date in all_cohorts) {
   # filter data for this cohort
   cohort_data <- sales_orders |>
     filter(first_order_month == cohort_date)
-  
+
   # get grand total (month 0)
   initial_count <- cohort_data |>
     filter(months_since_first_order == 0) |>
     summarise(customer_count = n_distinct(customer_id)) |>
     pull(customer_count)
-  
+
   # store grand total in "0"
   cohort_cumulative_pct[
     cohort_cumulative_pct$first_order_month == cohort_date,
     "0"
   ] <- initial_count
-  
+
   # percentages for months 1-22
   for (i in 1:22) {
     # Get count of customers still active after i months
@@ -343,16 +390,17 @@ for (cohort_date in all_cohorts) {
       filter(months_since_first_order >= i) |>
       summarise(customer_count = n_distinct(customer_id)) |>
       pull(customer_count)
-    
-    # percentage of grand total
+
+
+    # and total
     if (initial_count > 0) {
       percentage <- round((count_customers / initial_count) * 100, 1)
       # add to table, replacing 0 with NA
+
       value_to_add <- if (percentage == 0) NA else percentage
     } else {
       value_to_add <- NA
     }
-    
     cohort_cumulative_pct[
       cohort_cumulative_pct$first_order_month == cohort_date,
       as.character(i)
@@ -360,20 +408,28 @@ for (cohort_date in all_cohorts) {
   }
 }
 
-# spot check
-print(cohort_cumulative_pct)
-
 cohort_cumulative_pct$first_order_month <- format(
   cohort_cumulative_pct$first_order_month,
   "%Y-%b"
 )
+
+# apply fill function
+cohort_cumulative_pct <- cohort_cumulative_pct |>
+  ungroup() |>
+  replace_na_by_month()
+
+# spot check
+print(cohort_cumulative_pct)
 
 # UNIQUE CUSTOMERS
 
 customers_month <- so_query_result |>
   mutate(order_month = floor_date(order_date, "month"))
 
-unique_customers <- customers_month |>
+
+customers_month_2024 <- customers_month |>
+  filter(year(order_month) == 2024)
+unique_customers <- customers_month_2024 |>
   group_by(order_month) |>
   summarise(new_customers = n_distinct(customer_id)) |>
   mutate(
@@ -389,6 +445,10 @@ new_customers_df <- customers_month |>
   group_by(customer_id) |>
   mutate(first_purchase = min(order_date)) |>
   ungroup()
+
+
+new_customers_df <- new_customers_df |>
+  filter(year(first_purchase) == 2024)
 
 # first p month
 new_customers_df <- new_customers_df |>
@@ -418,3 +478,6 @@ new_groupby_filtered <- new_groupby_filtered |>
 # simple avg
 new_groupby_filtered <- new_groupby_filtered |>
   mutate(simple_avg = mean(customer_count))
+
+# spot check
+print(new_groupby_filtered)
