@@ -215,7 +215,10 @@ FROM sales_orders;
 # Create the Cohort_Count Table
 so_query_result <- dbGetQuery(connection, so_query)
 
-so_query_result$order_date <- as.Date(so_query_result$order_date, format = "%Y-%m")
+so_query_result$order_date <- as.Date(
+  so_query_result$order_date,
+  format = "%Y-%m"
+)
 
 # FILL NA FUNCTION
 
@@ -234,7 +237,13 @@ replace_na_by_month <- function(df) {
       }
 
       # parse date with column format
-      first_order_date <- as.Date(paste0(first_order_month, "-01"), format = "%Y-%b-%d")
+      first_order_date <- as.Date(
+        paste0(
+          first_order_month,
+          "-01"
+        ),
+        format = "%Y-%b-%d"
+      )
 
       # Calculate the target date
       target_date <- first_order_date + months(month_index)
@@ -262,7 +271,12 @@ print(customer_cohort)
 sales_orders <- so_query_result |>
   left_join(customer_cohort, by = "customer_id") |>
   mutate(
-    months_since_first_order = floor(interval(first_order_month, order_date) / months(1))
+    months_since_first_order = floor(
+      interval(
+        first_order_month,
+        order_date
+      ) / months(1)
+    )
   )
 
 cohort_count <- sales_orders |>
@@ -271,7 +285,10 @@ cohort_count <- sales_orders |>
   spread(key = months_since_first_order, value = customers_in_cohort) |>
   arrange(first_order_month)
 
-cohort_count$first_order_month <- format(cohort_count$first_order_month, "%Y-%b")
+cohort_count$first_order_month <- format(
+  cohort_count$first_order_month,
+  "%Y-%b"
+)
 
 # apply fill function
 cohort_count <- cohort_count |>
@@ -284,7 +301,13 @@ print(cohort_count)
 # CUSTOMER COHORT - NORMALIZED
 
 cohort_count_pct <- cohort_count |>
-  mutate(across(as.character(1:22), ~ round((.x / `0`) * 100, 1), .names = "{.col}"))
+  mutate(
+    across(
+      as.character(1:22),
+      ~ round((.x / `0`) * 100, 1),
+      .names = "{.col}"
+    )
+  )
 
 
 # spot check
@@ -319,12 +342,18 @@ for (cohort_date in all_cohorts) {
 
     # add to data frame
     value_to_add <- if (count_customers == 0) NA else count_customers
-    cohort_cumulative[cohort_cumulative$first_order_month == cohort_date, as.character(i)] <- value_to_add
+    cohort_cumulative[
+      cohort_cumulative$first_order_month == cohort_date,
+      as.character(i)
+    ] <- value_to_add
   }
 }
 
 
-cohort_cumulative$first_order_month <- format(cohort_cumulative$first_order_month, "%Y-%b")
+cohort_cumulative$first_order_month <- format(
+  cohort_cumulative$first_order_month,
+  "%Y-%b"
+)
 
 # apply fill function
 cohort_cumulative <- cohort_cumulative |>
@@ -336,7 +365,6 @@ print(cohort_cumulative)
 
 # COHORT CUMULATIVE NORMALIZED
 
-# nolint start
 # create empty tibble
 cohort_cumulative_pct <- data.frame(first_order_month = all_cohorts)
 
@@ -353,7 +381,10 @@ for (cohort_date in all_cohorts) {
     pull(customer_count)
 
   # store grand total in "0"
-  cohort_cumulative_pct[cohort_cumulative_pct$first_order_month == cohort_date, "0"] <- initial_count
+  cohort_cumulative_pct[
+    cohort_cumulative_pct$first_order_month == cohort_date,
+    "0"
+  ] <- initial_count
 
   # percentages for months 1-22
   for (i in 1:22) {
@@ -373,12 +404,17 @@ for (cohort_date in all_cohorts) {
       value_to_add <- NA
     }
 
-    cohort_cumulative_pct[cohort_cumulative_pct$first_order_month == cohort_date, as.character(i)] <- value_to_add
+    cohort_cumulative_pct[
+      cohort_cumulative_pct$first_order_month == cohort_date,
+      as.character(i)
+    ] <- value_to_add
   }
 }
 
-# nolint end
-cohort_cumulative_pct$first_order_month <- format(cohort_cumulative_pct$first_order_month, "%Y-%b")
+cohort_cumulative_pct$first_order_month <- format(
+  cohort_cumulative_pct$first_order_month,
+  "%Y-%b"
+)
 
 # apply fill function
 cohort_cumulative_pct <- cohort_cumulative_pct |>
@@ -432,7 +468,15 @@ new_groupby_filtered <- new_groupby %>%
 
 # 6m rolling
 new_groupby_filtered <- new_groupby_filtered |>
-  mutate(rolling_avg = rollapply(customer_count, width = 6, FUN = mean, align = "right", fill = NA))
+  mutate(
+    rolling_avg = rollapply(
+      customer_count,
+      width = 6,
+      FUN = mean,
+      align = "right",
+      fill = NA
+    )
+  )
 
 # simple avg
 new_groupby_filtered <- new_groupby_filtered |>
@@ -440,4 +484,3 @@ new_groupby_filtered <- new_groupby_filtered |>
 
 # spot check
 print(new_groupby_filtered)
-
