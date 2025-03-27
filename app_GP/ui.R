@@ -114,4 +114,3 @@ ui <- page_navbar(
     )
   )
 )
-

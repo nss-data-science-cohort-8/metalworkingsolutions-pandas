@@ -1,0 +1,46 @@
+
+```{r}
+library(DBI)
+library(RPostgres)
+library(tidyverse)
+library(dplyr)
+library(dbplyr)
+
+con <- dbConnect(Postgres(),                
+                 dbname = 'metalworkingsolutions',
+                 host = 'localhost',    
+                 port = 5432, 
+                 user = 'postgres',
+                 password = rstudioapi::askForPassword("Database password"))
+```
+
+```{r}
+jobs_tbl <- tbl(con, "jobs")
+jobs_tibble <- jobs_tbl |> collect()
+
+job_operations_2023_tbl <-  tbl(con,"job_operations_2023")
+job_operations_2023_tibble <- job_operations_2023_tbl|> collect()
+
+job_operations_2024_tbl <-  tbl(con,"job_operations_2024")
+job_operations_2024_tibble <- job_operations_2024_tbl|> collect()
+```
+
+```{r}
+combined_operations <- bind_rows(
+  job_operations_2023_tibble |> select(jmo_job_id),
+  job_operations_2024_tibble |> select(jmo_job_id)
+)
+
+job_counts_by_customer <- combined_operations |>
+  select(jmo_job_id) |>
+  distinct() |>
+  inner_join(jobs_tibble, by = c("jmo_job_id" = "jmp_job_id")) |>
+  group_by(jmp_customer_organization_id) |>
+  summarize(distinct_job_id_count = n_distinct(jmo_job_id)) |>
+  arrange(desc(distinct_job_id_count))
+
+job_counts_by_customer
+```
+
+
+

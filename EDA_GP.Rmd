@@ -1,0 +1,144 @@
+Metalworking Solutions is a sheet metal fabricator based in Chattanooga, Tennessee. Established in 2006, the company offers laser cutting, punching, bending, welding, finishing, and delivery services and ships over 2 million parts annually.
+
+You've been provided a dataset of jobs since the beginning of 2023.
+
+A few tips for navigating the database: Each job can have multiple job operations in the job_operations_2023/job_operations_2024 table. You can connect the jobs to the job_operations. The jmp_job_id references jmo_job_id in the job_operations_2023/job_operations_2024 tables. Jobs can be connected to sales orders through the sales_order_job_links table.
+
+Do an analysis of customers. The customer can be identified using the jmp_customer_organization_id from the jobs table or the omp_customer_organization_id from the sales_orders table. Here are some example questions to get started:
+a. Which customers have the highest volume of jobs? Which generate the most revenue (as indicated by the omp_order_subtotal_base in the sales_order table)?
+
+```{r}
+library(DBI)
+library(RPostgres)
+library(tidyverse)
+library(dplyr)
+library(dbplyr)
+```
+
+```{r}
+con <- dbConnect(Postgres(),                
+                 dbname = 'metalworkingsolutions',
+                 host = 'localhost',    
+                 port = 5432, 
+                 user = 'postgres',
+                 password = rstudioapi::askForPassword("Database password"))
+```
+
+```{r}
+jobs_tbl <- tbl(con, "jobs")
+jobs_tibble <- jobs_tbl |> collect()
+
+sales_order_job_links_tbl <- tbl(con,"sales_order_job_links")
+sales_order_job_links_tibble <- sales_order_job_links_tbl|> collect()
+
+sales_orders_tbl <- tbl(con,"sales_orders")
+sales_orders_tibble <- sales_orders_tbl|> collect()
+
+job_operations_2023_tbl <-  tbl(con,"job_operations_2023")
+job_operations_2023_tibble <- job_operations_2023_tbl|> collect()
+
+job_operations_2024_tbl <-  tbl(con,"job_operations_2024")
+job_operations_2024_tibble <- job_operations_2024_tbl|> collect()
+
+shipments_tbl <-  tbl(con,"shipments")
+shipments_tibble <- shipments_tbl|> collect()
+
+```
+
+a. Which customers have the highest volume of jobs? Which generate the most revenue (as indicated by the omp_order_subtotal_base in the sales_order table)?
+
+```{r}
+jobs_in_both_years <- inner_join(
+  jobs_tibble |> select(jmp_job_id) |> distinct(),
+  job_operations_2023_tibble |> select(jmo_job_id) |> distinct(),
+  job_operations_2024_tibble |> select(jmo_job_id) |> distinct(),
+  by = c("jmp_job_id" = "jmo_job_id"))
+  
+jobs_in_both_years
+
+jobs_tibble |> select(jmp_job_id) |> n_distinct()
+job_operations_2023_tibble |> select(jmo_job_id) |> n_distinct()
+job_operations_2024_tibble |> select(jmo_job_id) |> n_distinct()
+
+# 14815 unique project ids in jobs table
+# 14837 unique project ids in job ops tables combined
+```
+
+
+```{r}
+customer_all_jobs <- jobs_tibble |>
+  group_by(jmp_customer_organization_id) |>
+  summarize(total_jobs = n_distinct(jmp_job_id)) |>
+  arrange(desc(total_jobs))
+
+customer_all_jobs
+```
+
+
+```{r}
+customer_2023_jobs <- jobs_tibble |>
+  inner_join(job_operations_2023_tibble, by = c("jmp_job_id" = "jmo_job_id")) |>
+  group_by(jmp_customer_organization_id) |>
+  summarize(jobs_2023 = n_distinct(jmp_job_id)) |>
+  arrange(desc(jobs_2023))
+
+customer_2023_jobs
+```
+
+
+```{r}
+customer_2024_jobs <- jobs_tibble |>
+  inner_join(job_operations_2024_tibble, by = c("jmp_job_id" = "jmo_job_id")) |>
+  group_by(jmp_customer_organization_id) |>
+  summarize(jobs_2024 = n_distinct(jmp_job_id)) |>
+  arrange(desc(jobs_2024))
+
+customer_2024_jobs
+
+```
+```{r}
+jobs_in_2023_2024 <- job_operations_2023_tibble |>
+  select(jmo_job_id) |>
+  distinct() |>
+  inner_join(job_operations_2024_tibble |> select(jmo_job_id) |> distinct(),
+    by = "jmo_job_id")
+
+n_distinct(jobs_in_2023_2024$jmo_job_id)
+
+```
+
+```{r}
+highest_job_count_per_customer <- jobs_tibble |> 
+  inner_join(job_operations_2023_tibble, by = c("jmp_job_id" = "jmo_job_id")) |> 
+  inner_join(job_operations_2024_tibble, by = c("jmp_job_id" = "jmo_job_id")) |> 
+  group_by(jmp_customer_organization_id) |>  
+  summarize(job_count = n()) |> 
+  arrange(desc(job_count))
+
+highest_job_count_per_customer
+```
+
+```{r}
+highest_job_count_per_customer_jobs_table <- jobs_tibble |> 
+  group_by(jmp_customer_organization_id) |>  
+  summarize(job_count = n_distinct(jmp_job_id)) |> 
+  arrange(desc(job_count))
+
+highest_job_count_per_customer_jobs_table
+```
+
+b. How has the volume of work changed for each customer over time? Are there any seasonal patterns? How have the number of estimated hours per customer changed over time? Estimated hours are in the jmo_estimated_production_hours columns of the job_operations_2023/job_operations_2024 tables.
+```{r}
+
+```
+
+c. How has the customer base changed over time? What percentage of jobs are for new customers compared to repeat customers?
+```{r}
+
+```
+d. Perform a breakdown of customers by operation (as indicated by the jmo_process short_description in the job_operations_2023 or job_operations_2024 table).
+```{r}
+
+```
+
+
