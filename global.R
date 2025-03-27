@@ -30,7 +30,7 @@ connection <- dbConnect(
   host = "localhost",
   port = 5432,
   user = "postgres",
-  password = Sys.getenv("DB_PASSWORD") # with an .Rprofile and .Renviron i set 
+  password = Sys.getenv("DB_PASSWORD") # with an .Rprofile and .Renviron i set
   # environment variable
   # password = rstudioapi::askForPassword("Database Password")
 )
