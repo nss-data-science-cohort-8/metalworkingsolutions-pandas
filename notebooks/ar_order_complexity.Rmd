@@ -504,7 +504,7 @@ p5 <- customer_revenue_23 |>
   )
 
 ggplotly(p5, tooltip = "text")
-  ```
+```
 
 
 ### customer revenue 2024
@@ -555,7 +555,10 @@ p7 <- customer_revenue_total |>
       )
     )
   ) +
-  geom_col(fill = "#A1A7B0", color = "#c61126") +
+  geom_col(
+    fill = "#A1A7B0",
+    color = "#c61126"
+  ) +
   labs(
     title = "Revenue by customer for both years",
     x = "Customer ID",
@@ -585,7 +588,7 @@ p4 <- jobs |>
   group_by(month_year, customer_id) |>
   summarise(n_jobs = n_distinct(job_id), .groups = "drop") |>
   arrange(desc(n_jobs)) |>
-  mutate(customer_id = fct_reorder(customer_id, n_jobs, .desc = FALSE)) |>
+  mutate(customer_id = fct_reorder(customer_id, n_jobs, .desc = TRUE)) |>
   ggplot(aes(
     x = month_year,
     y = n_jobs,

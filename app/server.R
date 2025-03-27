@@ -1,4 +1,4 @@
-
+# nolint start
 server <- function(input, output, session) {
   # Render the dynamic sidebar with year selector
   output$dynamic_sidebar <- renderUI({
@@ -100,7 +100,7 @@ server <- function(input, output, session) {
       group_by(month_year, customer_id) |>
       summarise(n_jobs = n_distinct(job_id), .groups = "drop") |>
       arrange(desc(n_jobs)) |>
-      mutate(customer_id = fct_reorder(customer_id, n_jobs, .desc = FALSE)) |>
+      mutate(customer_id = fct_reorder(customer_id, n_jobs, .desc = TRUE)) |>
       ggplot(aes(
         x = month_year,
         y = n_jobs,
@@ -162,9 +162,9 @@ server <- function(input, output, session) {
         )
       )
     ) +
-      geom_col(fill = "#A1A7B0", color = "#c61126") +
+      geom_col(fill = "#445162", color = "#c61126") +
       labs(
-        title = "Revenue by customer for 2023",
+        title = plot_title,
         x = "Customer ID",
         y = "Revenue Generated"
       ) +
@@ -174,9 +174,6 @@ server <- function(input, output, session) {
           angle = 50,
           hjust = 1
         ),
-        panel.background = element_rect(fill = "#445162", colour = "#c61126"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
       )
 
     ggplotly(p, tooltip = "text")
@@ -199,50 +196,51 @@ server <- function(input, output, session) {
 
     plot_title <- paste("Order Complexity -", input$jobselect)
 
-    if (input$jobselect == "Jobs per customer") {
-      p1 <- ggplot(
-        plot_data3,
-        aes(
-          x = fct_reorder(customer_id, -n_jobs),
-          y = n_jobs,
-          text = paste(
-            "Customer ID: ", customer_id,
-            "\nNumber of Jobs: ", n_jobs
-          )
-        )
-      ) +
-        geom_col(
-          fill = "#445162",
-          color = "#c61126",
-          position = "dodge"
-        ) +
-        geom_text(
-          aes(
-            label = n_jobs,
-            y = n_jobs + 100
-          ),
-          color = "#445162",
-          size = 3
-        ) +
-        labs(
-          title = "Total Jobs by Customer ID",
-          x = "Customer ID",
-          y = "Number of Jobs"
-        ) +
-        theme_minimal() +
-        theme(
-          axis.text.x = element_text(
-            angle = 55,
-            hjust = 0.25
-          )
-        )
-      ggplotly(p1, tooltip = "text")
-    } else if (input$jobselect == "Big Spenders SOs") {
+    # if (input$jobselect == "Jobs per customer") {
+    #   p1 <- ggplot(
+    #     plot_data3,
+    #     aes(
+    #       x = fct_reorder(customer_id, -n_jobs),
+    #       y = n_jobs,
+    #       text = paste(
+    #         "Customer ID: ", customer_id,
+    #         "\nNumber of Jobs: ", n_jobs
+    #       )
+    #     )
+    #   ) +
+    #     geom_col(
+    #       fill = "#445162",
+    #       color = "#c61126",
+    #       position = "dodge"
+    #     ) +
+    #     geom_text(
+    #       aes(
+    #         label = n_jobs,
+    #         y = n_jobs + 100
+    #       ),
+    #       color = "#445162",
+    #       size = 3
+    #     ) +
+    #     labs(
+    #       title = "Total Jobs by Customer ID",
+    #       x = "Customer ID",
+    #       y = "Number of Jobs"
+    #     ) +
+    #     theme_minimal() +
+    #     theme(
+    #       axis.text.x = element_text(
+    #         angle = 55,
+    #         hjust = 0.25
+    #       )
+    #     )
+    #   ggplotly(p1, tooltip = "text")
+    # } else
+    if (input$jobselect == "Big Spenders SOs") {
       p2 <- complex_orders |>
-        head(50) |>
+        head(20) |>
         ggplot(aes(
-          x = fct_reorder(order_id, -jobs_per_order),
-          y = jobs_per_order,
+          y = fct_reorder(order_id, jobs_per_order),
+          x = jobs_per_order,
           text = paste(
             "customer: ", customer_id,
             "\njobs/order: ", jobs_per_order
@@ -256,10 +254,21 @@ server <- function(input, output, session) {
         geom_text(
           aes(
             label = jobs_per_order,
-            y = jobs_per_order + 1
+            x = jobs_per_order - 1
           ),
-          color = "#445162",
-          size = 2
+          color = "#FFFFFF",
+          size = 3.5,
+          hjust = 1
+        ) +
+        geom_text(
+          aes(
+            label = customer_id,
+            x = jobs_per_order / 2
+          ),
+          color = "#a1a7b0",
+          size = 4,
+          angle = 0,
+          vjust = 0.5
         ) +
         labs(
           title = "Top 50 Sales orders by # jobs of Big Spenders",
@@ -319,6 +328,7 @@ server <- function(input, output, session) {
           )
         )) +
         geom_col(fill = "#445162", color = "#c61126") +
+        geom_hline(aes(yintercept = mean_jobs_per_order), linetype = "dashed", color = "#A1A7B0") +
         geom_text(
           aes(
             label = round(avg_jobs_per_order, 1),
@@ -326,6 +336,14 @@ server <- function(input, output, session) {
           ),
           color = "#ffffff",
           size = 3.5
+        ) +
+        geom_text(
+          aes(
+            label = paste("Avg jobs / order for all customers: ", mean_jobs_per_order),
+            y = mean_jobs_per_order + 0.15,
+            x = "M030-MORGO"
+          ),
+          color = "#A1A7B0"
         ) +
         labs(
           title = "Average Jobs per Sales Order per Customer",
@@ -670,92 +688,99 @@ server <- function(input, output, session) {
   })
 
   # -- GRACIE SERVER ------------------------------------------------------------
-  
-    filtered_jobs <- reactive({
-      if(input$year_filter == "2023") {
-        year_data <- customers |>
-          mutate(omp_order_date = year(omp_order_date)) |>
-          filter(omp_order_date %in% 2023) |>
-          rename(customer_id = omp_customer_organization_id)
-        
-        jobs |>
-          inner_join(year_data, by = "customer_id") |>
-          select(customer_id, job_id) |>
-          distinct()
-        
-      } else if(input$year_filter == "2024") {
-        year_data <- customers |>
-          mutate(omp_order_date = year(omp_order_date)) |>
-          filter(omp_order_date %in% 2024) |>
-          rename(customer_id = omp_customer_organization_id)
 
-        jobs |>
-          inner_join(year_data, by = "customer_id") |>
-          select(customer_id, job_id) |>
-          distinct()
-        
-      } else {jobs}
-    })
-    
-    job_counts <- reactive({
-      top_customers <- if(input$year_filter == "2023") {
-        top20_customers_2023
-      } else if(input$year_filter == "2024") {
-        top20_customers_2024
-      } else {
-        top20_customers_total
-      }
+  filtered_jobs <- reactive({
+    if (input$year_filter == "2023") {
+      year_data <- customers |>
+        mutate(omp_order_date = year(omp_order_date)) |>
+        filter(omp_order_date %in% 2023) |>
+        rename(customer_id = omp_customer_organization_id)
 
-      filtered_jobs() |>
-        filter(customer_id %in% top_customers$customer_id) |>
-        group_by(customer_id) |>
-        summarise(n_jobs = n_distinct(job_id)) |>
-        arrange(n_jobs)
-    })
-    
-    output$top_customer_plot <- renderPlotly({
-      jobs_data <- job_counts()
-      
-      if(nrow(jobs_data) == 0) {
-        return(plotly_empty(type = "scatter", mode = "markers") |> 
-                 layout(title = "No data available for the selected year"))
-      }
-      
-      jobs_data$customer_id <- factor(
-        jobs_data$customer_id,
-        levels = jobs_data$customer_id
+      jobs |>
+        inner_join(year_data, by = "customer_id") |>
+        select(customer_id, job_id) |>
+        distinct()
+    } else if (input$year_filter == "2024") {
+      year_data <- customers |>
+        mutate(omp_order_date = year(omp_order_date)) |>
+        filter(omp_order_date %in% 2024) |>
+        rename(customer_id = omp_customer_organization_id)
+
+      jobs |>
+        inner_join(year_data, by = "customer_id") |>
+        select(customer_id, job_id) |>
+        distinct()
+    } else {
+      jobs
+    }
+  })
+
+  job_counts <- reactive({
+    top_customers <- if (input$year_filter == "2023") {
+      top20_customers_2023
+    } else if (input$year_filter == "2024") {
+      top20_customers_2024
+    } else {
+      top20_customers_total
+    }
+
+    filtered_jobs() |>
+      filter(customer_id %in% top_customers$customer_id) |>
+      group_by(customer_id) |>
+      summarise(n_jobs = n_distinct(job_id)) |>
+      arrange(n_jobs)
+  })
+
+  output$top_customer_plot <- renderPlotly({
+    jobs_data <- job_counts()
+
+    if (nrow(jobs_data) == 0) {
+      return(plotly_empty(type = "scatter", mode = "markers") |>
+        layout(title = "No data available for the selected year"))
+    }
+
+    jobs_data$customer_id <- factor(
+      jobs_data$customer_id,
+      levels = jobs_data$customer_id
+    )
+
+    year_title <- if (input$year_filter == "all") {
+      "2023-2024"
+    } else {
+      input$year_filter
+    }
+
+    top_customer_bar_chart <- ggplot(
+      jobs_data,
+      aes(
+        x = customer_id,
+        y = n_jobs,
+        fill = customer_id,
+        text = paste("Jobs:", n_jobs)
       )
-      
-      year_title <- if(input$year_filter == "all") {
-        "2023-2024"
-      } else {
-        input$year_filter
-      }
-      
-      top_customer_bar_chart <- ggplot(jobs_data, 
-                                       aes(x = customer_id,
-                                           y = n_jobs,
-                                           fill = customer_id,
-                                           text = paste("Jobs:", n_jobs))) +
-        geom_bar(stat = "identity") +
-        coord_flip() +
-        labs(title = paste("Total Number of Jobs Fulfilled by Top 20 Customers in", year_title),
-             x = "Customer Organization",
-             y = "Number of Jobs") +
-        theme_minimal(base_size = 15) +
-        theme(axis.text.y = element_text(size = 9, color = "#333333"),
-              legend.position = "none",
-              panel.grid = element_blank(),
-              panel.grid.minor = element_blank(),
-              axis.line = element_line(color = "black"),
-              axis.ticks = element_line(color = "black"),
-              plot.title = element_text(face = "plain", size = 16, hjust = 0.5),
-              axis.title = element_text(face = "plain", size = 13)) +
-        scale_fill_manual(values = mws_color_pallete[1:nrow(jobs_data)])
-      
-      ggplotly(top_customer_bar_chart, tooltip = "text") |>
-        layout(hoverlabel = list(bgcolor = "white"))
-    })
-  }
+    ) +
+      geom_bar(stat = "identity") +
+      coord_flip() +
+      labs(
+        title = paste("Total Number of Jobs Fulfilled by Top 20 Customers in", year_title),
+        x = "Customer Organization",
+        y = "Number of Jobs"
+      ) +
+      theme_minimal(base_size = 15) +
+      theme(
+        axis.text.y = element_text(size = 9, color = "#333333"),
+        legend.position = "none",
+        panel.grid = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(color = "black"),
+        axis.ticks = element_line(color = "black"),
+        plot.title = element_text(face = "plain", size = 16, hjust = 0.5),
+        axis.title = element_text(face = "plain", size = 13)
+      ) +
+      scale_fill_manual(values = mws_color_pallete[1:nrow(jobs_data)])
 
-
+    ggplotly(top_customer_bar_chart, tooltip = "text") |>
+      layout(hoverlabel = list(bgcolor = "white"))
+  })
+}
+# nolint end

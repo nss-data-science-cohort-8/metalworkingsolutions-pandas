@@ -3,14 +3,14 @@ ui <- page_navbar(
 
   # Andrew's Tab
   nav_panel("Andrew",
-    icon = icon("house"),
+    icon = icon("chart-simple"),
     page_sidebar(
       sidebar = sidebar(
         uiOutput("dynamic_sidebar"),
         hr()
       ),
       navset_card_underline(
-        title = "Customer Analysis",
+        title = "Customer Analysis - Top 20 Customers by Generated Revenue",
         nav_panel("Revenue",
           icon = icon("dollar-sign"),
           plotlyOutput("revenue")
@@ -27,7 +27,7 @@ ui <- page_navbar(
         nav_panel("Order Complexity",
           icon = icon("chart-simple"),
           selectInput("jobselect", "Select Jobs Analysis", choices = c(
-            "Jobs per customer",
+            # "Jobs per customer",
             "Big Spenders SOs",
             "Other Customers SOs",
             "Avg. Jobs per SO"
@@ -93,7 +93,7 @@ ui <- page_navbar(
       )
     )
   ),
-  
+
   # Gracie's Tab
   nav_panel(
     "Gracie",
@@ -105,8 +105,9 @@ ui <- page_navbar(
           sidebar = sidebar(
             width = 300,
             selectInput("year_filter", "Select Year:",
-                        choices = c("Both" = "all", "2023" = "2023", "2024" = "2024"),
-                        selected = "all")
+              choices = c("Both" = "all", "2023" = "2023", "2024" = "2024"),
+              selected = "all"
+            )
           ),
           plotlyOutput("top_customer_plot", height = "600px")
         )
@@ -114,4 +115,3 @@ ui <- page_navbar(
     )
   )
 )
-

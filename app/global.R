@@ -144,6 +144,13 @@ top_20_total_jobs <- jobs |>
   summarise(n_jobs = n_distinct(job_id), .groups = "drop") |>
   arrange(desc(n_jobs))
 
+n_jobs_per_order <- jobs |>
+  mutate(order_id = str_sub(job_id, 1, 5)) |>
+  group_by(order_id) |>
+  summarize(n_jobs = n_distinct(job_id))
+
+
+mean_jobs_per_order <- mean(n_jobs_per_order$n_jobs)
 
 query <- "
 SELECT
@@ -489,5 +496,3 @@ print(new_groupby_filtered)
 # GRACIE ----------------------------------------------
 
 mws_color_pallete <- colorRampPalette(c("#445162", "#A1A7B0", "#C61126"))(20)
-
-
