@@ -1,4 +1,3 @@
-# nolint start
 server <- function(input, output, session) {
   # Render the dynamic sidebar with year selector
   output$dynamic_sidebar <- renderUI({
@@ -687,4 +686,3 @@ server <- function(input, output, session) {
 
   # -- GRACIE SERVER ------------------------------------------------------------
 }
-# nolint end
