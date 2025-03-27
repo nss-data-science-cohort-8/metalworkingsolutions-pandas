@@ -30,8 +30,9 @@ connection <- dbConnect(
   host = "localhost",
   port = 5432,
   user = "postgres",
-  # password = Sys.getenv("DB_PASSWORD")
-  password = rstudioapi::askForPassword("Database Password")
+  password = Sys.getenv("DB_PASSWORD") # with an .Rprofile and .Renviron i set
+  # environment variable
+  # password = rstudioapi::askForPassword("Database Password")
 )
 
 # create query for top 20 customers for seasonal evaluation
